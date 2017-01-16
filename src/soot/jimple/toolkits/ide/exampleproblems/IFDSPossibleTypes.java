@@ -65,7 +65,7 @@ public class IFDSPossibleTypes extends DefaultJimpleIFDSTabulationProblem<Pair<V
 	public FlowFunctions<Unit, Pair<Value,Type>, SootMethod> createFlowFunctionsFactory() {
 		return new FlowFunctions<Unit,Pair<Value,Type>,SootMethod>() {
 
-			public FlowFunction<Pair<Value,Type>> getNormalFlowFunction(Unit src, Unit dest) {
+			public FlowFunction<Pair<Value,Type>> getNormalFlowFunction(Pair<Value,Type> sourceFact, Unit src, Unit dest) {
 				if(src instanceof DefinitionStmt) {
 					DefinitionStmt defnStmt = (DefinitionStmt) src;
 					if(defnStmt.containsInvokeExpr()) return Identity.v();
@@ -141,7 +141,7 @@ public class IFDSPossibleTypes extends DefaultJimpleIFDSTabulationProblem<Pair<V
 				return Identity.v();
 			}
 
-			public FlowFunction<Pair<Value,Type>> getCallFlowFunction(final Unit src, final SootMethod dest) {
+			public FlowFunction<Pair<Value,Type>> getCallFlowFunction(Pair<Value,Type> sourceFact, final Unit src, final SootMethod dest) {
 				Stmt stmt = (Stmt) src;
 				InvokeExpr ie = stmt.getInvokeExpr();
 				final List<Value> callArgs = ie.getArgs();
@@ -164,7 +164,7 @@ public class IFDSPossibleTypes extends DefaultJimpleIFDSTabulationProblem<Pair<V
 				};
 			}
 
-			public FlowFunction<Pair<Value,Type>> getReturnFlowFunction(Unit callSite, SootMethod callee, Unit exitStmt, Unit retSite) {
+			public FlowFunction<Pair<Value,Type>> getReturnFlowFunction(Pair<Value,Type> calleeD1, Pair<Value,Type> callerD1, Unit callSite, Pair<Value,Type> callerCallSiteFact, SootMethod callee, Unit exitStmt, Unit retSite) {
 				if (exitStmt instanceof ReturnStmt) {								
 					ReturnStmt returnStmt = (ReturnStmt) exitStmt;
 					Value op = returnStmt.getOp();
@@ -191,7 +191,8 @@ public class IFDSPossibleTypes extends DefaultJimpleIFDSTabulationProblem<Pair<V
 				return KillAll.v();
 			}
 
-			public FlowFunction<Pair<Value,Type>> getCallToReturnFlowFunction(Unit call, Unit returnSite) {
+			@Override
+			public FlowFunction<Pair<Value,Type>> getCallToReturnFlowFunction(Pair<Value,Type> sourceFact, Unit call, Unit returnSite, boolean hasCallee) {
 				return Identity.v();
 			}
 		};

@@ -60,7 +60,7 @@ public class IFDSUninitializedVariables extends DefaultJimpleIFDSTabulationProbl
 		return new FlowFunctions<Unit, Local, SootMethod>() {
 
 			@Override
-			public FlowFunction<Local> getNormalFlowFunction(Unit curr, Unit succ) {
+			public FlowFunction<Local> getNormalFlowFunction(Local sourceFact, Unit curr, Unit succ) {
 				final SootMethod m = interproceduralCFG().getMethodOf(curr);
 				if(Scene.v().getEntryPoints().contains(m) && interproceduralCFG().isStartPoint(curr)) {
 					return new FlowFunction<Local>() {
@@ -112,7 +112,7 @@ public class IFDSUninitializedVariables extends DefaultJimpleIFDSTabulationProbl
 			}
 
 			@Override
-			public FlowFunction<Local> getCallFlowFunction(Unit callStmt, final SootMethod destinationMethod) {
+			public FlowFunction<Local> getCallFlowFunction(Local sourceFact, Unit callStmt, final SootMethod destinationMethod) {
 				Stmt stmt = (Stmt) callStmt;
 				InvokeExpr invokeExpr = stmt.getInvokeExpr();
 				final List<Value> args = invokeExpr.getArgs();
@@ -154,7 +154,7 @@ public class IFDSUninitializedVariables extends DefaultJimpleIFDSTabulationProbl
 			}
 
 			@Override
-			public FlowFunction<Local> getReturnFlowFunction(final Unit callSite, SootMethod calleeMethod,
+			public FlowFunction<Local> getReturnFlowFunction(Local callerD1, Local calleeD1, final Unit callSite, Local callerCallSiteFact, SootMethod calleeMethod,
 					final Unit exitStmt, Unit returnSite) {
 				if (callSite instanceof DefinitionStmt) {
 					final DefinitionStmt definition = (DefinitionStmt) callSite;
@@ -193,7 +193,7 @@ public class IFDSUninitializedVariables extends DefaultJimpleIFDSTabulationProbl
 			}
 
 			@Override
-			public FlowFunction<Local> getCallToReturnFlowFunction(Unit callSite, Unit returnSite) {
+			public FlowFunction<Local> getCallToReturnFlowFunction(Local sourceFact, Unit callSite, Unit returnSite, boolean hasCallee) {
 				if (callSite instanceof DefinitionStmt) {
 					DefinitionStmt definition = (DefinitionStmt) callSite;
 					if(definition.getLeftOp() instanceof Local) {

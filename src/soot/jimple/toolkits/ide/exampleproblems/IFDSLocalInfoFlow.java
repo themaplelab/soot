@@ -61,7 +61,7 @@ public class IFDSLocalInfoFlow extends DefaultJimpleIFDSTabulationProblem<Local,
 		return new FlowFunctions<Unit,Local,SootMethod>() {
 
 			@Override
-			public FlowFunction<Local> getNormalFlowFunction(Unit src, Unit dest) {
+			public FlowFunction<Local> getNormalFlowFunction(Local d1, Unit src, Unit dest) {
 				if (src instanceof IdentityStmt && interproceduralCFG().getMethodOf(src)==Scene.v().getMainMethod()) {
 					IdentityStmt is = (IdentityStmt) src;
 					Local leftLocal = (Local) is.getLeftOp();
@@ -88,7 +88,7 @@ public class IFDSLocalInfoFlow extends DefaultJimpleIFDSTabulationProblem<Local,
 			}
 
 			@Override
-			public FlowFunction<Local> getCallFlowFunction(Unit src, final SootMethod dest) {
+			public FlowFunction<Local> getCallFlowFunction(Local sourceFact, Unit src, final SootMethod dest) {
 				Stmt s = (Stmt) src;
 				InvokeExpr ie = s.getInvokeExpr();
 				final List<Value> callArgs = ie.getArgs();
@@ -114,7 +114,7 @@ public class IFDSLocalInfoFlow extends DefaultJimpleIFDSTabulationProblem<Local,
 			}
 
 			@Override
-			public FlowFunction<Local> getReturnFlowFunction(Unit callSite, SootMethod callee, Unit exitStmt, Unit retSite) {
+			public FlowFunction<Local> getReturnFlowFunction(Local callerD1, Local calleeD1, Unit callSite, Local callerCallSiteFact, SootMethod callee, Unit exitStmt, Unit retSite) {
 				if (exitStmt instanceof ReturnStmt) {								
 					ReturnStmt returnStmt = (ReturnStmt) exitStmt;
 					Value op = returnStmt.getOp();
@@ -142,7 +142,7 @@ public class IFDSLocalInfoFlow extends DefaultJimpleIFDSTabulationProblem<Local,
 			}
 
 			@Override
-			public FlowFunction<Local> getCallToReturnFlowFunction(Unit call, Unit returnSite) {
+			public FlowFunction<Local> getCallToReturnFlowFunction(Local sourceFact, Unit call, Unit returnSite, boolean hasCallee) {
 				return Identity.v();
 			}
 		};						

@@ -59,7 +59,7 @@ public class IFDSReachingDefinitions extends DefaultJimpleIFDSTabulationProblem<
 		return new FlowFunctions<Unit, Pair<Value, Set<DefinitionStmt>>, SootMethod>() {
 
 			@Override
-			public FlowFunction<Pair<Value, Set<DefinitionStmt>>> getNormalFlowFunction(final Unit curr, Unit succ) {
+			public FlowFunction<Pair<Value, Set<DefinitionStmt>>> getNormalFlowFunction(Pair<Value, Set<DefinitionStmt>> sourceFact, final Unit curr, Unit succ) {
 				if (curr instanceof DefinitionStmt) {
 					final DefinitionStmt assignment = (DefinitionStmt) curr;
 
@@ -85,7 +85,7 @@ public class IFDSReachingDefinitions extends DefaultJimpleIFDSTabulationProblem<
 			}
 
 			@Override
-			public FlowFunction<Pair<Value, Set<DefinitionStmt>>> getCallFlowFunction(Unit callStmt,
+			public FlowFunction<Pair<Value, Set<DefinitionStmt>>> getCallFlowFunction(Pair<Value, Set<DefinitionStmt>> sourceFact, Unit callStmt,
 					final SootMethod destinationMethod) {
 				Stmt stmt = (Stmt) callStmt;
 				InvokeExpr invokeExpr = stmt.getInvokeExpr();
@@ -119,7 +119,7 @@ public class IFDSReachingDefinitions extends DefaultJimpleIFDSTabulationProblem<
 			}
 
 			@Override
-			public FlowFunction<Pair<Value, Set<DefinitionStmt>>> getReturnFlowFunction(final Unit callSite,
+			public FlowFunction<Pair<Value, Set<DefinitionStmt>>> getReturnFlowFunction(Pair<Value, Set<DefinitionStmt>> callerD1, Pair<Value, Set<DefinitionStmt>> calleeD1, final Unit callSite, Pair<Value, Set<DefinitionStmt>> callerCallSiteFact,
 					SootMethod calleeMethod, final Unit exitStmt, Unit returnSite) {
 				if (!(callSite instanceof DefinitionStmt))
 					return KillAll.v();
@@ -146,7 +146,7 @@ public class IFDSReachingDefinitions extends DefaultJimpleIFDSTabulationProblem<
 			}
 
 			@Override
-			public FlowFunction<Pair<Value, Set<DefinitionStmt>>> getCallToReturnFlowFunction(Unit callSite, Unit returnSite) {
+			public FlowFunction<Pair<Value, Set<DefinitionStmt>>> getCallToReturnFlowFunction(Pair<Value, Set<DefinitionStmt>> sourceFact, Unit callSite, Unit returnSite, boolean hasCallee) {
 				if (!(callSite instanceof DefinitionStmt))
 					return Identity.v();
 				

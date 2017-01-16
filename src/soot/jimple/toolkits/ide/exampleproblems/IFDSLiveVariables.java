@@ -54,7 +54,7 @@ public class IFDSLiveVariables extends DefaultJimpleIFDSTabulationProblem<Value,
 		return new FlowFunctions<Unit, Value, SootMethod>() {
 
 			@Override
-			public FlowFunction<Value> getNormalFlowFunction(Unit curr, Unit succ) {
+			public FlowFunction<Value> getNormalFlowFunction(Value sourceFact, Unit curr, Unit succ) {
 				if(curr.getUseAndDefBoxes().isEmpty()) return Identity.v();
 
 				final Stmt s = (Stmt) curr;
@@ -88,7 +88,7 @@ public class IFDSLiveVariables extends DefaultJimpleIFDSTabulationProblem<Value,
 			}
 
 			@Override
-			public FlowFunction<Value> getCallFlowFunction(Unit callStmt, final SootMethod destinationMethod) {
+			public FlowFunction<Value> getCallFlowFunction(Value sourceFact, Unit callStmt, final SootMethod destinationMethod) {
 				final Stmt s = (Stmt) callStmt;
 				return new FlowFunction<Value>() {
 					public Set<Value> computeTargets(Value source) {
@@ -113,7 +113,7 @@ public class IFDSLiveVariables extends DefaultJimpleIFDSTabulationProblem<Value,
 			}
 
 			@Override
-			public FlowFunction<Value> getReturnFlowFunction(final Unit callSite, SootMethod calleeMethod, final Unit exitStmt, Unit returnSite) {
+			public FlowFunction<Value> getReturnFlowFunction(Value callerD1, Value calleeD1, final Unit callSite, Value callerCallSiteFact, SootMethod calleeMethod, final Unit exitStmt, Unit returnSite) {
 				Stmt s = (Stmt) callSite;
 				InvokeExpr ie = s.getInvokeExpr();
 				final List<Value> callArgs = ie.getArgs();
@@ -135,7 +135,7 @@ public class IFDSLiveVariables extends DefaultJimpleIFDSTabulationProblem<Value,
 			}
 
 			@Override
-			public FlowFunction<Value> getCallToReturnFlowFunction(Unit callSite, Unit returnSite) {
+			public FlowFunction<Value> getCallToReturnFlowFunction(Value sourceFact, Unit callSite, Unit returnSite, boolean hasCallee) {
 				if(callSite.getUseAndDefBoxes().isEmpty()) return Identity.v();
 				
 				final Stmt s = (Stmt) callSite;
@@ -172,6 +172,7 @@ public class IFDSLiveVariables extends DefaultJimpleIFDSTabulationProblem<Value,
 					}
 				};
 			}
+
 		};
 	}
 
