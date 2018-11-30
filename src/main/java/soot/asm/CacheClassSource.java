@@ -1,10 +1,10 @@
-package soot;
+package soot.asm;
 
 /*-
  * #%L
  * Soot - a J*va Optimization Framework
  * %%
- * Copyright (C) 2018 Kristen Newbury
+ * Copyright (C) 1997 - 2018 Kristen Newbury
  * %%
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as
@@ -24,6 +24,7 @@ package soot;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.ByteArrayInputStream;
 
 import org.objectweb.asm.ClassReader;
 
@@ -39,7 +40,7 @@ import soot.javaToJimple.IInitialResolver.Dependencies;
  */
 class CacheClassSource extends ClassSource {
 
-  private FoundFile foundFile;
+  private byte[] source;
 
   /**
    * Constructs a new Cache class source.
@@ -49,17 +50,43 @@ class CacheClassSource extends ClassSource {
    * @param data
    *          stream containing data for class.
    */
-  CacheClassSource(String className) {
-      super(className);
+  CacheClassSource(String cls, byte[] source) {
+    super(cls);
+    if (source == null) {
+      throw new IllegalStateException("Error: The class source must not be null.");
     }
+    this.source = source;
+  }
 
-@Override
+  @Override
   public Dependencies resolve(SootClass sc) {
-    Dependencies deps = new Dependencies();
-    return(deps);
-}
-    
- @Override
+    InputStream d = null;
+    try{
+      d = new ByteArrayInputStream(source);
+      ClassReader clsr = new ClassReader(source);
+      SootClassBuilder scb = new SootClassBuilder(sc);
+      clsr.accept(scb, ClassReader.SKIP_FRAMES);
+      Dependencies deps = new Dependencies();
+      deps.typesToSignature.addAll(scb.deps);
+      return deps;
+    } catch (Exception e) {
+      throw new RuntimeException("Error: Failed to create class reader from class source.", e);
+    } finally {
+      try {
+        if (d != null) {
+          d.close();
+          d = null;
+        }
+      } catch (IOException e) {
+        throw new RuntimeException("Error: Failed to close source input stream.", e);
+      } finally {
+        close();
+      }
+    }
+  }
+
+    @Override
   public void close() {
- }
+	//not applicable
+  }
 }

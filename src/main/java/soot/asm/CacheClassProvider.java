@@ -1,4 +1,4 @@
-package soot;
+package soot.asm;
 
 /*-
  * #%L
@@ -46,6 +46,8 @@ public class CacheClassProvider implements ClassProvider {
 
   public ClassSource find(String cls) {
 
+    byte[] result = null;
+      
     SharedClassHelperFactory factory = com.ibm.oti.shared.Shared.getSharedClassHelperFactory();
     if (factory == null) {
       System.err.print("Cannot return cache access factory.");
@@ -54,26 +56,16 @@ public class CacheClassProvider implements ClassProvider {
 	URL[] urls = null;
 	URL url = null;
 	SharedClassURLClasspathHelper helper = null;
-
+	
 	try{
 	    //use absolute path to classfile that we are trying to find class of
-	    File file = new File("/root/soot");
-	    url = file.toURI().toURL(); 
-	    urls = new URL[]{new URL("file:///root/soot/")};
+	    url = new URL("file:///root/soot/tests/");
+	    urls = new URL[]{url};
 	}catch (MalformedURLException e) {
 	    System.out.println("Bad URL provided");
 	    e.printStackTrace();
 	}
 	URLClassLoader loader = new URLClassLoader(urls);
-
-	//just a test, based on this url can a classloader find this class. the answer is yes of course.
-	/*	try{
-	    Class c = loader.loadClass("ConstraintErrorExample");
-	}catch(ClassNotFoundException e){
-	    System.out.println("Cannot load this class at all\n");
-            e.printStackTrace();
-	    }*/
-	
 
 	//get helper to find classes in cache
 	try{
@@ -82,14 +74,17 @@ public class CacheClassProvider implements ClassProvider {
 	
 	//not sure if this is needed, think probably not?
 	helper.confirmAllEntries();
+
+	
 	//is this actually the format of what needs to be provided here? should it be just classname or full url to classfile?
-	byte[] result = helper.findSharedClass("ConstraintErrorExample", null);
+	result = helper.findSharedClass(cls, null);
+	System.out.println(cls);
 	if (result == null) {
-	    System.err.print("Cannot find class in cache.\n");
+	    System.out.println("Cannot find class in cache.");
 	}else{
   	    System.out.println("Found the method!");
 	}
     }
-    return new CacheClassSource("");
+    return result == null ? null : new CacheClassSource(cls, result);
   }
 }
