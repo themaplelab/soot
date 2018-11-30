@@ -46,6 +46,7 @@ import org.slf4j.LoggerFactory;
 
 import soot.JavaClassProvider.JarException;
 import soot.asm.AsmClassProvider;
+import soot.asm.CacheClassProvider;
 import soot.dexpler.DexFileProvider;
 import soot.options.Options;
 
@@ -231,6 +232,12 @@ public class SourceLocator {
     classProviders = new LinkedList<ClassProvider>();
     ClassProvider classFileClassProvider = Options.v().coffi() ? new CoffiClassProvider() : new AsmClassProvider();
     switch (Options.v().src_prec()) {
+    case Options.src_prec_cache:
+	classProviders.add(new CacheClassProvider());
+	classProviders.add(classFileClassProvider);
+        classProviders.add(new JimpleClassProvider());
+        classProviders.add(new JavaClassProvider());
+        break;
       case Options.src_prec_class:
         classProviders.add(classFileClassProvider);
         classProviders.add(new JimpleClassProvider());
