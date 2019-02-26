@@ -15,3 +15,7 @@
 /.settings
 
 /target
+
+#emacs temp files
+*~
+*#
