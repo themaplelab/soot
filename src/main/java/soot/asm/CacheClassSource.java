@@ -23,6 +23,7 @@ package soot.asm;
  */
 
 import java.io.IOException;
+import java.io.FileNotFoundException;
 import java.io.InputStream;
 import java.io.ByteArrayInputStream;
 
@@ -33,6 +34,24 @@ import soot.FoundFile;
 import soot.SootClass;
 import soot.javaToJimple.IInitialResolver.Dependencies;
 
+import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.List;
+
+import java.nio.ByteOrder;
+import com.ibm.j9ddr.corereaders.memory.MemoryFault;
+import com.ibm.j9ddr.tools.ddrinteractive.CacheMemory;
+import com.ibm.j9ddr.tools.ddrinteractive.CacheMemorySource;
+
+//for ddr init attempt
+import com.ibm.j9ddr.IVMData;
+import com.ibm.j9ddr.VMDataFactory;
+import com.ibm.j9ddr.corereaders.memory.IProcess;
+
+//for srp
+import com.ibm.j9ddr.vm29.pointer.SelfRelativePointer;
+import com.ibm.j9ddr.vm29.types.U32;
+
 /**
  * Cache class source implementation.
  * 
@@ -40,8 +59,9 @@ import soot.javaToJimple.IInitialResolver.Dependencies;
  */
 class CacheClassSource extends ClassSource {
 
-  private byte[] source;
-
+  private byte[] cookiesource;
+    private byte[] classsource;
+    
   /**
    * Constructs a new Cache class source.
    * 
@@ -55,15 +75,35 @@ class CacheClassSource extends ClassSource {
     if (source == null) {
       throw new IllegalStateException("Error: The class source must not be null.");
     }
-    this.source = source;
+    this.cookiesource = source;
   }
 
   @Override
   public Dependencies resolve(SootClass sc) {
     InputStream d = null;
     try{
-      d = new ByteArrayInputStream(source);
-      ClassReader clsr = new ClassReader(source);
+	System.out.println("Byte array contents: ");
+	System.out.println(Arrays.toString(cookiesource));
+	System.out.println("-------------");
+	System.out.write(cookiesource);
+	System.out.println("-------------");
+
+	long maps = 0;
+	maps |= 0x40000000;	 
+
+	long addr = 0;
+for (int i = 0; i < 8; i++)
+{
+   addr += ((long) cookiesource[i+24] & 0xffL) << (8 * i);
+}
+
+      byte[] tempclasssource = tryWithMemModel(addr);	 
+      System.out.println("ROM array contents: ");
+      System.out.println(Arrays.toString(tempclasssource));
+      System.out.println("-------------");
+
+      
+      ClassReader clsr = new ClassReader(classsource);
       SootClassBuilder scb = new SootClassBuilder(sc);
       clsr.accept(scb, ClassReader.SKIP_FRAMES);
       Dependencies deps = new Dependencies();
@@ -89,4 +129,31 @@ class CacheClassSource extends ClassSource {
   public void close() {
 	//not applicable
   }
+
+byte[] tryWithMemModel(long addr){
+
+    int len = 208;
+    byte[] buffer = new byte[len];
+    //    IProcess proc = new CacheMemory(ByteOrder.LITTLE_ENDIAN);
+    CacheMemory memory = new CacheMemory(ByteOrder.LITTLE_ENDIAN);
+    try{
+	//	IProcess process = memory;
+	//	IVMData aVMData = VMDataFactory.getVMData(proc);    
+    }catch(Exception e){
+	System.out.println("Could not setup ddr"+ e.getMessage());
+    }
+
+    memory.addMemorySource(new CacheMemorySource(addr, len));
+    try{
+	memory.getBytesAt(addr, buffer, 0 , len); 
+	System.out.write(buffer);
+    }catch(Exception e){
+ System.out.println("Could not read the memory " + e.getMessage());
+         e.printStackTrace(System.out);
+    }
+    return(buffer);
+}
+
+
+
 }
