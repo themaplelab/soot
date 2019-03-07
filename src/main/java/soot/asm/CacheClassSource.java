@@ -48,6 +48,9 @@ import com.ibm.j9ddr.IVMData;
 import com.ibm.j9ddr.VMDataFactory;
 import com.ibm.j9ddr.corereaders.memory.IProcess;
 
+//for romclasspointer
+import com.ibm.j9ddr.vm29.pointer.generated.J9ROMClassPointer;
+
 //for srp
 import com.ibm.j9ddr.vm29.pointer.SelfRelativePointer;
 import com.ibm.j9ddr.vm29.types.U32;
@@ -134,22 +137,29 @@ byte[] tryWithMemModel(long addr){
 
     int len = 208;
     byte[] buffer = new byte[len];
-    //    IProcess proc = new CacheMemory(ByteOrder.LITTLE_ENDIAN);
+    //not great to hardcode len but will do for now
+    IProcess proc = new CacheMemory(ByteOrder.LITTLE_ENDIAN);
     CacheMemory memory = new CacheMemory(ByteOrder.LITTLE_ENDIAN);
     try{
-	//	IProcess process = memory;
-	//	IVMData aVMData = VMDataFactory.getVMData(proc);    
+	//setup DDR - init datatype
+	assert proc != null : "Process should not be null";
+	IVMData aVMData = VMDataFactory.getVMData(proc);
+	assert  aVMData != null : "VMDATA should not be null";
+	//if datatype is init'd - will be able to get process and create the romclass pointer
+	J9ROMClassPointer clazz = J9ROMClassPointer.cast(addr) ;
+	assert clazz != null : "ROMClassPointer should not be null";
     }catch(Exception e){
 	System.out.println("Could not setup ddr"+ e.getMessage());
     }
 
     memory.addMemorySource(new CacheMemorySource(addr, len));
     try{
+	//fetch cache bytes as byte array
 	memory.getBytesAt(addr, buffer, 0 , len); 
 	System.out.write(buffer);
     }catch(Exception e){
- System.out.println("Could not read the memory " + e.getMessage());
-         e.printStackTrace(System.out);
+	System.out.println("Could not read the memory " + e.getMessage());
+        e.printStackTrace(System.out);
     }
     return(buffer);
 }
