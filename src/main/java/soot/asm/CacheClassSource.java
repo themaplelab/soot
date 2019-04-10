@@ -54,6 +54,12 @@ import com.ibm.j9ddr.vm29.pointer.generated.J9ROMClassPointer;
 //for srp
 import com.ibm.j9ddr.vm29.pointer.SelfRelativePointer;
 import com.ibm.j9ddr.vm29.types.U32;
+import com.ibm.j9ddr.vm29.pointer.generated.J9UTF8Pointer;
+
+//for ddrclassloader
+import com.ibm.j9ddr.J9DDRClassLoader;
+import java.lang.reflect.Method;
+import com.ibm.j9ddr.vm29.j9.DataType;
 
 /**
  * Cache class source implementation.
@@ -62,7 +68,7 @@ import com.ibm.j9ddr.vm29.types.U32;
  */
 class CacheClassSource extends ClassSource {
 
-  private byte[] cookiesource;
+    private byte[] cookiesource;
     private byte[] classsource;
     
   /**
@@ -76,7 +82,7 @@ class CacheClassSource extends ClassSource {
   CacheClassSource(String cls, byte[] source) {
     super(cls);
     if (source == null) {
-      throw new IllegalStateException("Error: The class source must not be null.");
+	throw new IllegalStateException("Error: The class source must not be null.");
     }
     this.cookiesource = source;
   }
@@ -95,42 +101,37 @@ class CacheClassSource extends ClassSource {
 	maps |= 0x40000000;	 
 
 	long addr = 0;
-for (int i = 0; i < 8; i++)
-{
-   addr += ((long) cookiesource[i+24] & 0xffL) << (8 * i);
-}
+	for (int i = 0; i < 8; i++)
+	    {
+		addr += ((long) cookiesource[i+24] & 0xffL) << (8 * i);
+	    }
 
-      byte[] tempclasssource = tryWithMemModel(addr);	 
-      System.out.println("ROM array contents: ");
-      System.out.println(Arrays.toString(tempclasssource));
-      System.out.println("-------------");
+	byte[] tempclasssource = tryWithMemModel(addr);	 
+	System.out.println("ROM array contents: ");
+	System.out.println(Arrays.toString(tempclasssource));
+	System.out.println("-------------");
 
       
-      ClassReader clsr = new ClassReader(classsource);
-      SootClassBuilder scb = new SootClassBuilder(sc);
-      clsr.accept(scb, ClassReader.SKIP_FRAMES);
-      Dependencies deps = new Dependencies();
-      deps.typesToSignature.addAll(scb.deps);
-      return deps;
+	ClassReader clsr = new ClassReader(classsource);
+	SootClassBuilder scb = new SootClassBuilder(sc);
+	clsr.accept(scb, ClassReader.SKIP_FRAMES);
+	Dependencies deps = new Dependencies();
+	deps.typesToSignature.addAll(scb.deps);
+	return deps;
     } catch (Exception e) {
-      throw new RuntimeException("Error: Failed to create class reader from class source.", e);
+	throw new RuntimeException("Error: Failed to create class reader from class source.", e);
     } finally {
-      try {
-        if (d != null) {
-          d.close();
-          d = null;
-        }
-      } catch (IOException e) {
-        throw new RuntimeException("Error: Failed to close source input stream.", e);
-      } finally {
-        close();
-      }
+	try {
+	    if (d != null) {
+		d.close();
+		d = null;
+	    }
+	} catch (IOException e) {
+	    throw new RuntimeException("Error: Failed to close source input stream.", e);
+	} finally {
+	    close();
+	}
     }
-  }
-
-    @Override
-  public void close() {
-	//not applicable
   }
 
 byte[] tryWithMemModel(long addr){
@@ -138,21 +139,42 @@ byte[] tryWithMemModel(long addr){
     int len = 208;
     byte[] buffer = new byte[len];
     //not great to hardcode len but will do for now
-    IProcess proc = new CacheMemory(ByteOrder.LITTLE_ENDIAN);
     CacheMemory memory = new CacheMemory(ByteOrder.LITTLE_ENDIAN);
+    IProcess proc = (IProcess)memory;
+    memory.addMemorySource(new CacheMemorySource(addr, len));
     try{
 	//setup DDR - init datatype
 	assert proc != null : "Process should not be null";
 	IVMData aVMData = VMDataFactory.getVMData(proc);
-	assert  aVMData != null : "VMDATA should not be null";
+	J9DDRClassLoader ddrClassLoader = aVMData.getClassLoader();
+	Class<?> clazz1 = ddrClassLoader.loadClass("com.ibm.j9ddr.vm29.pointer.generated.J9ROMClassPointer");
+	ddrClassLoader.loadClass("com.ibm.j9ddr.vm29.pointer.generated.J9ROMClassPointer");
+	assert  aVMData != null : "VMDATA should not be null";	 
+
+	
 	//if datatype is init'd - will be able to get process and create the romclass pointer
-	J9ROMClassPointer clazz = J9ROMClassPointer.cast(addr) ;
-	assert clazz != null : "ROMClassPointer should not be null";
+
+	Method getStructureMethod = clazz1.getDeclaredMethod("cast", new Class[] { Long.TYPE });
+        Object clazz = getStructureMethod.invoke(null, new Object[] { addr });
+	
+
+	//test to use this romclasspoiter
+	Method getInnerClassCount = clazz1.getDeclaredMethod("modifiers", null);
+	Object classcount = getInnerClassCount.invoke(clazz);
+
+	if(classcount==null){
+	    System.out.println("class count was null");
+	}
+		
+	System.out.println("TEST FOR ROMCLASS CLASS COUNT\n");
+	System.out.println(classcount);
+	System.out.println(classcount.getClass());
+	
     }catch(Exception e){
 	System.out.println("Could not setup ddr"+ e.getMessage());
+	e.printStackTrace(System.out);
     }
 
-    memory.addMemorySource(new CacheMemorySource(addr, len));
     try{
 	//fetch cache bytes as byte array
 	memory.getBytesAt(addr, buffer, 0 , len); 
