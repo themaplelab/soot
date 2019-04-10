@@ -28,6 +28,8 @@ import java.io.InputStream;
 import java.io.ByteArrayInputStream;
 
 import org.objectweb.asm.ClassReader;
+import org.objectweb.asm.ClassWriter;
+import org.objectweb.asm.Opcodes;
 
 import soot.ClassSource;
 import soot.FoundFile;
@@ -50,11 +52,14 @@ import com.ibm.j9ddr.corereaders.memory.IProcess;
 
 //for romclasspointer
 import com.ibm.j9ddr.vm29.pointer.generated.J9ROMClassPointer;
+import com.ibm.j9ddr.vm29.pointer.helper.J9ROMClassHelper;
 
 //for srp
 import com.ibm.j9ddr.vm29.pointer.SelfRelativePointer;
 import com.ibm.j9ddr.vm29.types.U32;
 import com.ibm.j9ddr.vm29.pointer.generated.J9UTF8Pointer;
+//just kidding
+//import static com.ibm.j9ddr.vm29.structure.J9JavaAccessFlags.*;
 
 //for ddrclassloader
 import com.ibm.j9ddr.J9DDRClassLoader;
@@ -112,7 +117,7 @@ class CacheClassSource extends ClassSource {
 	System.out.println("-------------");
 
       
-	ClassReader clsr = new ClassReader(classsource);
+	ClassReader clsr = new ClassReader(tempclasssource);
 	SootClassBuilder scb = new SootClassBuilder(sc);
 	clsr.accept(scb, ClassReader.SKIP_FRAMES);
 	Dependencies deps = new Dependencies();
@@ -138,6 +143,7 @@ byte[] tryWithMemModel(long addr){
 
     int len = 208;
     byte[] buffer = new byte[len];
+    byte[] classRep = null;
     //not great to hardcode len but will do for now
     CacheMemory memory = new CacheMemory(ByteOrder.LITTLE_ENDIAN);
     IProcess proc = (IProcess)memory;
@@ -146,29 +152,14 @@ byte[] tryWithMemModel(long addr){
 	//setup DDR - init datatype
 	assert proc != null : "Process should not be null";
 	IVMData aVMData = VMDataFactory.getVMData(proc);
+	assert  aVMData != null : "VMDATA should not be null";
+	
 	J9DDRClassLoader ddrClassLoader = aVMData.getClassLoader();
 	Class<?> clazz1 = ddrClassLoader.loadClass("com.ibm.j9ddr.vm29.pointer.generated.J9ROMClassPointer");
-	ddrClassLoader.loadClass("com.ibm.j9ddr.vm29.pointer.generated.J9ROMClassPointer");
-	assert  aVMData != null : "VMDATA should not be null";	 
-
+	System.out.println(clazz1.getClass());
 	
 	//if datatype is init'd - will be able to get process and create the romclass pointer
-
-	Method getStructureMethod = clazz1.getDeclaredMethod("cast", new Class[] { Long.TYPE });
-        Object clazz = getStructureMethod.invoke(null, new Object[] { addr });
-	
-
-	//test to use this romclasspoiter
-	Method getInnerClassCount = clazz1.getDeclaredMethod("modifiers", null);
-	Object classcount = getInnerClassCount.invoke(clazz);
-
-	if(classcount==null){
-	    System.out.println("class count was null");
-	}
-		
-	System.out.println("TEST FOR ROMCLASS CLASS COUNT\n");
-	System.out.println(classcount);
-	System.out.println(classcount.getClass());
+	classRep = romPointerRepExtraction(clazz1, addr);
 	
     }catch(Exception e){
 	System.out.println("Could not setup ddr"+ e.getMessage());
@@ -183,9 +174,72 @@ byte[] tryWithMemModel(long addr){
 	System.out.println("Could not read the memory " + e.getMessage());
         e.printStackTrace(System.out);
     }
-    return(buffer);
+    return(classRep);
 }
 
+    private byte[] romPointerRepExtraction(Class<?> clazz1, long addr) throws Exception{
+	byte[] classRepresentation = null;
+
+	//obtain the romclasspointer object
+	Method getStructureMethod = clazz1.getDeclaredMethod("cast", new Class[] { Long.TYPE });
+        Object clazz = getStructureMethod.invoke(null, new Object[] { addr });
+	
+	
+	//test to use this romclasspoiter                                                                                   
+        Method modifiers = clazz1.getDeclaredMethod("modifiers", null);
+	Object udataModifiers = modifiers.invoke(clazz);
+
+	//temp. testing
+        if(udataModifiers ==null){
+            System.out.println("modifiers fetch gives null");
+        }
+
+        System.out.println("TEST FOR ROMCLASS CLASS COUNT\n");
+        System.out.println(udataModifiers);
+        System.out.println(udataModifiers.getClass());
+	System.out.println("Is it public?");
+
+	//goal do something like:                                                                                           
+        //1) J9ROMClassHelper.isPublic(clazz);                                                                                 
+        //or                                                                                                                
+        //2) udataModifiers.allBitsIn(J9AccPublic);
+
+
+	//1) will fail because of inability to cast an Object to a romClassPointer
+	//System.out.println(J9ROMClassHelper.isPublic(clazz.getClass().cast(clazz))); 
+
+	//this also does not work?
+	//System.out.println(J9ROMClassHelper.isPublic((clazz.getClass())clazz));
+
+	//2) will fail bc J9AccPublic is not loaded, see this comment from top of file:
+
+	/*
+	 * Structure: J9JavaAccessFlags                                                                                     
+ *                                                                                                                          
+ * This stub class represents a class that can return in memory offsets                                                     
+ * to VM C and C++ structures.                                                                                              
+ *                                                                                                                          
+ * This particular implementation exists only to allow StructurePointer code to                                             
+ * compile at development time.  This is never loaded at run time.                                                          
+ *                                                                                                                          
+ * At runtime generated byte codes returning actual offset values from the core file                                        
+ * will be loaded by the StructureClassLoader.
+*/	
+
+
+
+
+	//asm class writer to give to give to asm class reader
+	//just garbage in it so far, no real vals
+	ClassWriter cw = new ClassWriter(0);
+	cw.visit(Opcodes.V1_8, Opcodes.ACC_PUBLIC ,
+		 "pkg/Comparable", null, "java/lang/Object",
+		 null);
+	cw.visitEnd();
+	classRepresentation = cw.toByteArray();
+
+	return classRepresentation;
+    }
 
 
 }
