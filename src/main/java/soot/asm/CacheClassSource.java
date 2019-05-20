@@ -46,6 +46,7 @@ import com.ibm.j9ddr.tools.ddrinteractive.CacheMemory;
 import com.ibm.j9ddr.tools.ddrinteractive.CacheMemorySource;
 
 //for ddr init attempt
+import com.ibm.j9ddr.vm29.j9.VMData;
 import com.ibm.j9ddr.IVMData;
 import com.ibm.j9ddr.VMDataFactory;
 import com.ibm.j9ddr.corereaders.memory.IProcess;
@@ -54,12 +55,7 @@ import com.ibm.j9ddr.corereaders.memory.IProcess;
 import com.ibm.j9ddr.vm29.pointer.generated.J9ROMClassPointer;
 import com.ibm.j9ddr.vm29.pointer.helper.J9ROMClassHelper;
 
-//for srp
-import com.ibm.j9ddr.vm29.pointer.SelfRelativePointer;
-import com.ibm.j9ddr.vm29.types.U32;
 import com.ibm.j9ddr.vm29.pointer.generated.J9UTF8Pointer;
-//just kidding
-//import static com.ibm.j9ddr.vm29.structure.J9JavaAccessFlags.*;
 
 //for ddrclassloader
 import com.ibm.j9ddr.J9DDRClassLoader;
@@ -71,7 +67,6 @@ import java.lang.reflect.Field;
 
 //base address test
 import com.ibm.j9ddr.vm29.pointer.generated.*;
-import com.ibm.j9ddr.vm29.pointer.helper.J9RASHelper;
 import com.ibm.j9ddr.vm29.pointer.AbstractPointer;
 
 
@@ -164,141 +159,23 @@ byte[] tryWithMemModel(long addr){
 	IVMData aVMData = VMDataFactory.getVMData(proc);
 	assert  aVMData != null : "VMDATA should not be null";
 
-
-	//System.out.println("Our vm structures are: ");
-	//System.out.println(aVMData.getStructures());
-
-	
-	J9DDRClassLoader ddrClassLoader = aVMData.getClassLoader();
-	System.out.println("In cachesource, this is our classloader: ");
-	System.out.println(ddrClassLoader);
-	System.out.println(ddrClassLoader.hashCode());
-	Class<?> clazz1 = ddrClassLoader.loadClass("com.ibm.j9ddr.vm29.pointer.generated.J9ROMClassPointer",true);
-	System.out.println(clazz1.getClass());
-
-	Class<?> redoclass = ddrClassLoader.loadClass("com.ibm.j9ddr.vm29.pointer.generated.J9RASPointer", true);
-	
-	System.out.println("WEIRDSANE");
-	//	System.out.println(ddrClassLoader.getStructures());
-	
-	System.out.println("----------");
-	ddrClassLoader.printCache();
-	System.out.println("----------");
-	
-	System.out.println("THECLASSLOADER OF J9ClassPointer WILL BE: ");
-        System.out.println(J9ClassPointer.class.getClassLoader());
-	System.out.println(clazz1.getClassLoader());
-	System.out.println("THECLASSLOADER OF DATATYPE WILL BE: ");
-        System.out.println(DataType.class.getClassLoader().toString());
-	
-	J9ClassPointer classpointer = J9ClassPointer.cast(addr);
-	J9ROMClassPointer instance = classpointer.romClass();
-	System.out.println(instance.className());
-	
-	//if datatype is init'd - will be able to get process and create the romclass pointer
-	classRep = romPointerRepExtraction(clazz1, addr, ddrClassLoader);
+	//can force our wrapper to be loaded by J9DDRClassLoader
+	aVMData.bootstrap("com.ibm.j9ddr.vm29.ROMClassWrapper", new Object[] {addr});
+	classRep = getSource(aVMData);
 	
     }catch(Exception e){
 	System.out.println("Could not setup ddr"+ e.getMessage());
 	e.printStackTrace(System.out);
     }
 
-    try{
-	//fetch cache bytes as byte array
-	memory.getBytesAt(addr, buffer, 0 , len);
-	System.out.println("WRITINGBUF");
-	System.out.println("-------");
-	System.out.write(buffer);
-	System.out.println("-------");
-    }catch(Exception e){
-	System.out.println("Could not read the memory " + e.getMessage());
-        e.printStackTrace(System.out);
-    }
     return(classRep);
 }
 
-    private byte[] romPointerRepExtraction(Class<?> clazz1, long addr, J9DDRClassLoader ddrClassLoader) throws Exception{
-	byte[] classRepresentation = null;
-
-	//obtain the romclasspointer object
-	Method getStructureMethod = clazz1.getDeclaredMethod("cast", new Class[] { Long.TYPE });
-        Object clazz = getStructureMethod.invoke(null, new Object[] { addr });
-	
-	
-	//test to use this romclasspoiter                                                                                   
-        Method modifiers = clazz1.getDeclaredMethod("modifiers", null);
-	Object udataModifiers = modifiers.invoke(clazz);
-
-	//temp. testing
-        if(udataModifiers ==null){
-            System.out.println("modifiers fetch gives null");
-        }
-
-        System.out.println("TEST FOR ROMCLASS CLASS COUNT\n");
-        System.out.println(udataModifiers);
-        System.out.println(udataModifiers.getClass());
-
-	//string testing
-	Method className = clazz1.getDeclaredMethod("className", null);
-	Object fqn = className.invoke(clazz);
-
-
-	System.out.println("TEST FOR ROMCLASS CLASS STR NAME\n");
-        System.out.println(fqn);
-        System.out.println(fqn.getClass());
-
-	
-	//test for base address of cache
-	System.out.println("TESTING BASE ADDRESS");
-	//doing this: DataType.getJ9RASPointer()
-	Class<?> dataTypeClazz = ddrClassLoader.loadClassRelativeToStream("j9.DataType", false);
-	Method getMethod = dataTypeClazz.getDeclaredMethod("getJ9RASPointer");
-	Object pointer = getMethod.invoke(null);
-
-	System.out.println(ClassLoader.class);
-	
-	 Field[] fields = ClassLoader.class.getDeclaredFields(); // Get system class loader
-	 for(int i = 0; i < fields.length; i++) {
-            System.out.println("The field is: " + fields[i].toString());
-         }
-
-	 Field apploader = ClassLoader.class.getDeclaredField("applicationClassLoader");
-	 apploader.setAccessible(true); // Set accessible
-	 System.out.println(apploader);
-        apploader.set(null, ddrClassLoader); // Update it to your class loader
-	 
-	//but first
-	System.out.println("THECLASSLOADER OF ABSTR WILL BE: ");
-	System.out.println(AbstractPointer.class.getClassLoader());
-
-	
-	//now this: J9JavaVMPointer vm = J9RASHelper.getVM(DataType.getJ9RASPointer());
-	Class<?> J9RASHelperClazz = ddrClassLoader.loadClass("com.ibm.j9ddr.vm29.pointer.helper.J9RASHelper", true);
-	Method getVMMethod = J9RASHelperClazz.getDeclaredMethod("getVM", pointer.getClass());
-	Object vm = getVMMethod.invoke(null, new Object[] { pointer });
-
-	//plan to get J9RASPointer via reflection using cast on romclass address then use J9RASPointer.vm call
-
-	
-	
-
-	/*	J9SharedClassConfigPointer sc = vm.sharedClassConfig();
-	J9SharedClassCacheDescriptorPointer cacheDescriptor = sc.cacheDescriptorList();
-	System.out.println(sc.getHexAddress());
-	System.out.println(cacheDescriptor.cacheStartAddress());
-	*/
-
-	//asm class writer to give to give to asm class reader
-	//just garbage in it so far, no real vals
-	ClassWriter cw = new ClassWriter(0);
-	cw.visit(Opcodes.V1_8, Opcodes.ACC_PUBLIC ,
-		 "ConstraintErrorExample", null, "java/lang/Object",
-		 null);
-	cw.visitEnd();
-	classRepresentation = cw.toByteArray();
-
-	return classRepresentation;
+    byte[] getSource(IVMData aVMData) throws Exception{
+	J9DDRClassLoader ddrClassLoader = aVMData.getClassLoader();
+	Class<?> clazz = ddrClassLoader.loadClass("com.ibm.j9ddr.vm29.ROMClassWrapper");
+	Method getClassMethod = clazz.getDeclaredMethod("getClassRep", null);
+        byte[] source = (byte[])getClassMethod.invoke(null);
+	return source;
     }
-
-
 }
