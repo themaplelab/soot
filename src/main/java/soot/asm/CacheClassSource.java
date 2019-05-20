@@ -66,6 +66,16 @@ import com.ibm.j9ddr.J9DDRClassLoader;
 import java.lang.reflect.Method;
 import com.ibm.j9ddr.vm29.j9.DataType;
 
+import  java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
+
+//base address test
+import com.ibm.j9ddr.vm29.pointer.generated.*;
+import com.ibm.j9ddr.vm29.pointer.helper.J9RASHelper;
+import com.ibm.j9ddr.vm29.pointer.AbstractPointer;
+
+
+
 /**
  * Cache class source implementation.
  * 
@@ -141,7 +151,7 @@ class CacheClassSource extends ClassSource {
 
 byte[] tryWithMemModel(long addr){
 
-    int len = 208;
+    int len = 520;
     byte[] buffer = new byte[len];
     byte[] classRep = null;
     //not great to hardcode len but will do for now
@@ -153,13 +163,40 @@ byte[] tryWithMemModel(long addr){
 	assert proc != null : "Process should not be null";
 	IVMData aVMData = VMDataFactory.getVMData(proc);
 	assert  aVMData != null : "VMDATA should not be null";
+
+
+	//System.out.println("Our vm structures are: ");
+	//System.out.println(aVMData.getStructures());
+
 	
 	J9DDRClassLoader ddrClassLoader = aVMData.getClassLoader();
-	Class<?> clazz1 = ddrClassLoader.loadClass("com.ibm.j9ddr.vm29.pointer.generated.J9ROMClassPointer");
+	System.out.println("In cachesource, this is our classloader: ");
+	System.out.println(ddrClassLoader);
+	System.out.println(ddrClassLoader.hashCode());
+	Class<?> clazz1 = ddrClassLoader.loadClass("com.ibm.j9ddr.vm29.pointer.generated.J9ROMClassPointer",true);
 	System.out.println(clazz1.getClass());
+
+	Class<?> redoclass = ddrClassLoader.loadClass("com.ibm.j9ddr.vm29.pointer.generated.J9RASPointer", true);
+	
+	System.out.println("WEIRDSANE");
+	//	System.out.println(ddrClassLoader.getStructures());
+	
+	System.out.println("----------");
+	ddrClassLoader.printCache();
+	System.out.println("----------");
+	
+	System.out.println("THECLASSLOADER OF J9ClassPointer WILL BE: ");
+        System.out.println(J9ClassPointer.class.getClassLoader());
+	System.out.println(clazz1.getClassLoader());
+	System.out.println("THECLASSLOADER OF DATATYPE WILL BE: ");
+        System.out.println(DataType.class.getClassLoader().toString());
+	
+	J9ClassPointer classpointer = J9ClassPointer.cast(addr);
+	J9ROMClassPointer instance = classpointer.romClass();
+	System.out.println(instance.className());
 	
 	//if datatype is init'd - will be able to get process and create the romclass pointer
-	classRep = romPointerRepExtraction(clazz1, addr);
+	classRep = romPointerRepExtraction(clazz1, addr, ddrClassLoader);
 	
     }catch(Exception e){
 	System.out.println("Could not setup ddr"+ e.getMessage());
@@ -168,8 +205,11 @@ byte[] tryWithMemModel(long addr){
 
     try{
 	//fetch cache bytes as byte array
-	memory.getBytesAt(addr, buffer, 0 , len); 
+	memory.getBytesAt(addr, buffer, 0 , len);
+	System.out.println("WRITINGBUF");
+	System.out.println("-------");
 	System.out.write(buffer);
+	System.out.println("-------");
     }catch(Exception e){
 	System.out.println("Could not read the memory " + e.getMessage());
         e.printStackTrace(System.out);
@@ -177,7 +217,7 @@ byte[] tryWithMemModel(long addr){
     return(classRep);
 }
 
-    private byte[] romPointerRepExtraction(Class<?> clazz1, long addr) throws Exception{
+    private byte[] romPointerRepExtraction(Class<?> clazz1, long addr, J9DDRClassLoader ddrClassLoader) throws Exception{
 	byte[] classRepresentation = null;
 
 	//obtain the romclasspointer object
@@ -197,43 +237,62 @@ byte[] tryWithMemModel(long addr){
         System.out.println("TEST FOR ROMCLASS CLASS COUNT\n");
         System.out.println(udataModifiers);
         System.out.println(udataModifiers.getClass());
-	System.out.println("Is it public?");
 
-	//goal do something like:                                                                                           
-        //1) J9ROMClassHelper.isPublic(clazz);                                                                                 
-        //or                                                                                                                
-        //2) udataModifiers.allBitsIn(J9AccPublic);
+	//string testing
+	Method className = clazz1.getDeclaredMethod("className", null);
+	Object fqn = className.invoke(clazz);
 
 
-	//1) will fail because of inability to cast an Object to a romClassPointer
-	//System.out.println(J9ROMClassHelper.isPublic(clazz.getClass().cast(clazz))); 
+	System.out.println("TEST FOR ROMCLASS CLASS STR NAME\n");
+        System.out.println(fqn);
+        System.out.println(fqn.getClass());
 
-	//this also does not work?
-	//System.out.println(J9ROMClassHelper.isPublic((clazz.getClass())clazz));
+	
+	//test for base address of cache
+	System.out.println("TESTING BASE ADDRESS");
+	//doing this: DataType.getJ9RASPointer()
+	Class<?> dataTypeClazz = ddrClassLoader.loadClassRelativeToStream("j9.DataType", false);
+	Method getMethod = dataTypeClazz.getDeclaredMethod("getJ9RASPointer");
+	Object pointer = getMethod.invoke(null);
 
-	//2) will fail bc J9AccPublic is not loaded, see this comment from top of file:
+	System.out.println(ClassLoader.class);
+	
+	 Field[] fields = ClassLoader.class.getDeclaredFields(); // Get system class loader
+	 for(int i = 0; i < fields.length; i++) {
+            System.out.println("The field is: " + fields[i].toString());
+         }
 
-	/*
-	 * Structure: J9JavaAccessFlags                                                                                     
- *                                                                                                                          
- * This stub class represents a class that can return in memory offsets                                                     
- * to VM C and C++ structures.                                                                                              
- *                                                                                                                          
- * This particular implementation exists only to allow StructurePointer code to                                             
- * compile at development time.  This is never loaded at run time.                                                          
- *                                                                                                                          
- * At runtime generated byte codes returning actual offset values from the core file                                        
- * will be loaded by the StructureClassLoader.
-*/	
+	 Field apploader = ClassLoader.class.getDeclaredField("applicationClassLoader");
+	 apploader.setAccessible(true); // Set accessible
+	 System.out.println(apploader);
+        apploader.set(null, ddrClassLoader); // Update it to your class loader
+	 
+	//but first
+	System.out.println("THECLASSLOADER OF ABSTR WILL BE: ");
+	System.out.println(AbstractPointer.class.getClassLoader());
 
+	
+	//now this: J9JavaVMPointer vm = J9RASHelper.getVM(DataType.getJ9RASPointer());
+	Class<?> J9RASHelperClazz = ddrClassLoader.loadClass("com.ibm.j9ddr.vm29.pointer.helper.J9RASHelper", true);
+	Method getVMMethod = J9RASHelperClazz.getDeclaredMethod("getVM", pointer.getClass());
+	Object vm = getVMMethod.invoke(null, new Object[] { pointer });
 
+	//plan to get J9RASPointer via reflection using cast on romclass address then use J9RASPointer.vm call
 
+	
+	
+
+	/*	J9SharedClassConfigPointer sc = vm.sharedClassConfig();
+	J9SharedClassCacheDescriptorPointer cacheDescriptor = sc.cacheDescriptorList();
+	System.out.println(sc.getHexAddress());
+	System.out.println(cacheDescriptor.cacheStartAddress());
+	*/
 
 	//asm class writer to give to give to asm class reader
 	//just garbage in it so far, no real vals
 	ClassWriter cw = new ClassWriter(0);
 	cw.visit(Opcodes.V1_8, Opcodes.ACC_PUBLIC ,
-		 "pkg/Comparable", null, "java/lang/Object",
+		 "ConstraintErrorExample", null, "java/lang/Object",
 		 null);
 	cw.visitEnd();
 	classRepresentation = cw.toByteArray();
