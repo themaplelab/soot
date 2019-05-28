@@ -30,13 +30,46 @@ import com.ibm.j9ddr.IVMData;
 import com.ibm.j9ddr.vm29.pointer.generated.J9ROMClassPointer;
 import com.ibm.j9ddr.vm29.pointer.generated.J9UTF8Pointer;
 
+import com.ibm.j9ddr.vm29.j9.DataType;
+import com.ibm.j9ddr.vm29.pointer.generated.J9JavaVMPointer;
+import com.ibm.j9ddr.vm29.pointer.helper.J9RASHelper;
+import com.ibm.j9ddr.vm29.pointer.generated.J9SharedClassConfigPointer;
+import com.ibm.j9ddr.vm29.pointer.generated.J9SharedClassCacheDescriptorPointer;
+
 public class ROMClassWrapper implements IBootstrapRunnable{
 
     private J9ROMClassPointer pointer;
     private static byte[] classrep;
+    private final static String J9VM_ADDRESS_PROPERTY = "com.ibm.j9ddr.vmaddr";
     
     public void run(IVMData vmData, Object[] userData){
 
+	try{
+
+	    String vmAddressString = System.getProperty(J9VM_ADDRESS_PROPERTY);
+	    long address = 0;
+	    if( vmAddressString != null ) {
+		try {
+				if( vmAddressString.startsWith("0x") ) {
+					address = Long.parseLong( vmAddressString.substring(2), 16);
+				} else {
+					address = Long.parseLong( vmAddressString );
+				}
+			} catch (NumberFormatException nfe ) {
+			    System.out.println("System property " + J9VM_ADDRESS_PROPERTY + " does not contain a valid pointer address, found: " + vmAddressString);
+			    System.out.println(nfe.getMessage());
+			    nfe.printStackTrace(System.out);
+			}
+		}
+	    System.out.println("VMpointer addr:");
+	    System.out.println(address);
+		J9JavaVMPointer vm = J9JavaVMPointer.cast(address);
+	J9SharedClassConfigPointer sc = vm.sharedClassConfig();
+	J9SharedClassCacheDescriptorPointer cacheDescriptor = sc.cacheDescriptorList();
+	System.out.println("This is the cache start address test");
+	System.out.println(sc.getHexAddress());
+	System.out.println(cacheDescriptor.cacheStartAddress());
+	    
 	Long addr = new Long((long)userData[0]);
 	
 	System.out.println("TESTING THE WRAPPER!");
@@ -47,21 +80,25 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 
 	pointer = J9ROMClassPointer.cast(addr);
 
-	try{
-	J9UTF8Pointer name = pointer.superclassName();
-	if (name != J9UTF8Pointer.NULL){
+	System.out.println("Intermediate len: ");
+	System.out.println(pointer.intermediateClassDataLength());
+
+	System.out.println("superclassNameEA");
+	System.out.println(pointer.superclassNameEA());
+	/*J9UTF8Pointer name = pointer.superclassNameEA();
+	if (!name.isNull()){
 	    System.out.println("RUNTESTsuperNAME");
-	    System.out.println(name);
+	    //System.out.println(name);
 	}else{
 	    System.out.println("FAILED to get super name");
-	}
+	    }*/
 	
 	System.out.println("Major version");
 	System.out.println(pointer.majorVersion());
 	
 	}catch (CorruptDataException e){
 	    System.out.println("Cannot get pointer name" + e.getMessage());
-
+	    e.printStackTrace(System.out);
 	}
 	this.classrep = new byte[10];
     }

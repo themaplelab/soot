@@ -33,9 +33,13 @@ import com.ibm.oti.shared.SharedClassURLClasspathHelper;
 import java.net.URLClassLoader;
 import java.net.URL;
 import java.io.File;
+import java.util.Arrays;
 
 import com.ibm.oti.shared.HelperAlreadyDefinedException;
 import java.net.MalformedURLException;
+
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 
 /**
  * OpenJ9 Shared Cache Class class provider.
@@ -43,21 +47,22 @@ import java.net.MalformedURLException;
  * @author Kristen Newbury
  */
 public class CacheClassProvider implements ClassProvider {
-
+    
   public ClassSource find(String cls) {
 
-    byte[] result = null;
-      
-    SharedClassHelperFactory factory = com.ibm.oti.shared.Shared.getSharedClassHelperFactory();
+    byte[] romCookie = null;
+    CacheMemorySingleton cacheMem = null;
+    ByteBuffer wrapper = null;
+    
+    SharedClassHelperFactory factory = Shared.getSharedClassHelperFactory();
     if (factory == null) {
-      System.err.print("Cannot return cache access factory.");
+	System.err.print("Cannot return cache access factory.");
     }else{
-
 	URL[] urls = null;
 	URL url = null;
 	SharedClassURLClasspathHelper helper = null;
-	
 	try{
+	    //TODO eventually replace this
 	    //use absolute path to classfile that we are trying to find class of
 	    url = new URL("file:///root/soot/tests/");
 	    urls = new URL[]{url};
@@ -70,21 +75,41 @@ public class CacheClassProvider implements ClassProvider {
 	//get helper to find classes in cache
 	try{
 	    helper = factory.getURLClasspathHelper(loader, urls);
-	}catch (HelperAlreadyDefinedException e) {}
+	}catch (HelperAlreadyDefinedException e) {
+	    System.out.println("Helper already defined?"+e.getMessage());
+	    e.printStackTrace();
+	}
 	
 	//not sure if this is needed, think probably not?
 	helper.confirmAllEntries();
-
 	
+	System.out.println("THIS IS CACHE START");
+	try {
+	    //for now this part happens every time
+	    //maybe consider avoiding that later 
+	    byte[] cacheInfo = helper.findSharedCache();
+	    if (cacheInfo != null){
+		wrapper = ByteBuffer.wrap(cacheInfo);
+		//jni filled byte array
+		wrapper.order(ByteOrder.nativeOrder());
+		cacheMem = CacheMemorySingleton.getInstance();
+	    }else{
+		System.out.println("Cannot get cache start");
+	    }
+	}catch (Exception e){
+	    System.out.println(e.getMessage());
+	    e.printStackTrace();
+	}
+
 	//is this actually the format of what needs to be provided here? should it be just classname or full url to classfile?
-	result = helper.findSharedClass(cls, null);
+	romCookie = helper.findSharedClass(cls, null);
 	System.out.println(cls);
-	if (result == null) {
+	if (romCookie == null) {
 	    System.out.println("Cannot find class in cache.");
 	}else{
   	    System.out.println("Found the method!");
 	}
     }
-    return result == null ? null : new CacheClassSource(cls, result);
+    return romCookie == null ? null : new CacheClassSource(cls, romCookie, cacheMem, wrapper.getLong(), wrapper.getInt());
   }
 }

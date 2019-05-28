@@ -40,6 +40,7 @@ import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.List;
 
+import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import com.ibm.j9ddr.corereaders.memory.MemoryFault;
 import com.ibm.j9ddr.tools.ddrinteractive.CacheMemory;
@@ -69,8 +70,6 @@ import java.lang.reflect.Field;
 import com.ibm.j9ddr.vm29.pointer.generated.*;
 import com.ibm.j9ddr.vm29.pointer.AbstractPointer;
 
-
-
 /**
  * Cache class source implementation.
  * 
@@ -80,7 +79,9 @@ class CacheClassSource extends ClassSource {
 
     private byte[] cookiesource;
     private byte[] classsource;
-    
+    private CacheMemorySingleton memory;
+    private long cacheaddr;
+    private int cachesize;
   /**
    * Constructs a new Cache class source.
    * 
@@ -89,13 +90,16 @@ class CacheClassSource extends ClassSource {
    * @param data
    *          stream containing data for class.
    */
-  CacheClassSource(String cls, byte[] source) {
-    super(cls);
-    if (source == null) {
-	throw new IllegalStateException("Error: The class source must not be null.");
+    CacheClassSource(String cls, byte[] source, CacheMemorySingleton memory, long cacheaddr, int cachesize) {
+	super(cls);
+	if (source == null) {
+	    throw new IllegalStateException("Error: The class source must not be null.");
+	}
+	this.cookiesource = source;
+	this.memory = memory;
+	this.cacheaddr = cacheaddr;
+	this.cachesize = cachesize;
     }
-    this.cookiesource = source;
-  }
 
   @Override
   public Dependencies resolve(SootClass sc) {
@@ -107,15 +111,14 @@ class CacheClassSource extends ClassSource {
 	System.out.write(cookiesource);
 	System.out.println("-------------");
 
-	long maps = 0;
-	maps |= 0x40000000;	 
-
-	long addr = 0;
-	for (int i = 0; i < 8; i++)
-	    {
-		addr += ((long) cookiesource[i+24] & 0xffL) << (8 * i);
-	    }
-
+	ByteBuffer wrapper = ByteBuffer.wrap(cookiesource);
+	wrapper.order(ByteOrder.nativeOrder());
+	//TODO replace this with the runtime val for offset into romclasscookie that romclass address is at
+	long addr = wrapper.getLong(24);
+	
+	System.out.println("We've got romclass addr:");
+	System.out.println(addr);
+	
 	byte[] tempclasssource = tryWithMemModel(addr);	 
 	System.out.println("ROM array contents: ");
 	System.out.println(Arrays.toString(tempclasssource));
@@ -144,32 +147,31 @@ class CacheClassSource extends ClassSource {
     }
   }
 
-byte[] tryWithMemModel(long addr){
+    byte[] tryWithMemModel(long addr){
 
-    int len = 520;
-    byte[] buffer = new byte[len];
-    byte[] classRep = null;
-    //not great to hardcode len but will do for now
-    CacheMemory memory = new CacheMemory(ByteOrder.LITTLE_ENDIAN);
-    IProcess proc = (IProcess)memory;
-    memory.addMemorySource(new CacheMemorySource(addr, len));
-    try{
-	//setup DDR - init datatype
-	assert proc != null : "Process should not be null";
-	IVMData aVMData = VMDataFactory.getVMData(proc);
-	assert  aVMData != null : "VMDATA should not be null";
-
-	//can force our wrapper to be loaded by J9DDRClassLoader
-	aVMData.bootstrap("com.ibm.j9ddr.vm29.ROMClassWrapper", new Object[] {addr});
-	classRep = getSource(aVMData);
+	byte[] classRep = null;
+	System.out.println("We have a memory");
+	System.out.println(memory.getMemory());
+	IProcess proc = (IProcess)memory.getMemory();
+	//now add the memory source
+	memory.addMemorySource(this.cacheaddr, this.cachesize);
+	try{
+	    //setup DDR - init datatype
+	    assert proc != null : "Process should not be null";
+	    IVMData aVMData = VMDataFactory.getVMData(proc);
+	    assert  aVMData != null : "VMDATA should not be null";
+    
+	    //can force our wrapper to be loaded by J9DDRClassLoader
+	    aVMData.bootstrap("com.ibm.j9ddr.vm29.ROMClassWrapper", new Object[] {addr});
+	    classRep = getSource(aVMData);
 	
-    }catch(Exception e){
-	System.out.println("Could not setup ddr"+ e.getMessage());
-	e.printStackTrace(System.out);
+	}catch(Exception e){
+	    System.out.println("Could not setup ddr"+ e.getMessage());
+	    e.printStackTrace(System.out);
+	}
+	
+	return(classRep);
     }
-
-    return(classRep);
-}
 
     byte[] getSource(IVMData aVMData) throws Exception{
 	J9DDRClassLoader ddrClassLoader = aVMData.getClassLoader();
