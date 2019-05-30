@@ -43,32 +43,6 @@ public class ROMClassWrapper implements IBootstrapRunnable{
     private final static String J9VM_ADDRESS_PROPERTY = "com.ibm.j9ddr.vmaddr";
     
     public void run(IVMData vmData, Object[] userData){
-
-	try{
-
-	    String vmAddressString = System.getProperty(J9VM_ADDRESS_PROPERTY);
-	    long address = 0;
-	    if( vmAddressString != null ) {
-		try {
-				if( vmAddressString.startsWith("0x") ) {
-					address = Long.parseLong( vmAddressString.substring(2), 16);
-				} else {
-					address = Long.parseLong( vmAddressString );
-				}
-			} catch (NumberFormatException nfe ) {
-			    System.out.println("System property " + J9VM_ADDRESS_PROPERTY + " does not contain a valid pointer address, found: " + vmAddressString);
-			    System.out.println(nfe.getMessage());
-			    nfe.printStackTrace(System.out);
-			}
-		}
-	    System.out.println("VMpointer addr:");
-	    System.out.println(address);
-		J9JavaVMPointer vm = J9JavaVMPointer.cast(address);
-	J9SharedClassConfigPointer sc = vm.sharedClassConfig();
-	J9SharedClassCacheDescriptorPointer cacheDescriptor = sc.cacheDescriptorList();
-	System.out.println("This is the cache start address test");
-	System.out.println(sc.getHexAddress());
-	System.out.println(cacheDescriptor.cacheStartAddress());
 	    
 	Long addr = new Long((long)userData[0]);
 	
@@ -80,9 +54,16 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 
 	pointer = J9ROMClassPointer.cast(addr);
 
-	System.out.println("Intermediate len: ");
+
+	
+	try{
+	    System.out.println("Major version");
+        System.out.println(pointer.majorVersion());
+
+	    System.out.println("Intermediate len: ");
 	System.out.println(pointer.intermediateClassDataLength());
 
+	
 	System.out.println("superclassNameEA");
 	System.out.println(pointer.superclassNameEA());
 	/*J9UTF8Pointer name = pointer.superclassNameEA();
@@ -96,7 +77,7 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 	System.out.println("Major version");
 	System.out.println(pointer.majorVersion());
 	
-	}catch (CorruptDataException e){
+	}catch (Exception e){
 	    System.out.println("Cannot get pointer name" + e.getMessage());
 	    e.printStackTrace(System.out);
 	}
