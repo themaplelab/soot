@@ -111,13 +111,12 @@ class CacheClassSource extends ClassSource {
 	System.out.write(cookiesource);
 	System.out.println("-------------");
 
-	ByteBuffer wrapper = ByteBuffer.wrap(cookiesource);
-	wrapper.order(ByteOrder.nativeOrder());
-	//TODO replace this with the runtime val for offset into romclasscookie that romclass address is at
-	long addr = wrapper.getLong(24);
-	
-	System.out.println("We've got romclass addr:");
-	System.out.println(addr);
+	//TODO replace index (24) into cookie with the runtime val for offset of romclass address
+	long addr = 0;
+	for (int i = 0; i < 8; i++)
+	    {
+		addr += ((long) cookiesource[i+24] & 0xffL) << (8 * i);
+	    }
 	
 	byte[] tempclasssource = tryWithMemModel(addr);	 
 	System.out.println("ROM array contents: ");
@@ -160,7 +159,7 @@ class CacheClassSource extends ClassSource {
 	    assert proc != null : "Process should not be null";
 	    IVMData aVMData = VMDataFactory.getVMData(proc);
 	    assert  aVMData != null : "VMDATA should not be null";
-    
+
 	    //can force our wrapper to be loaded by J9DDRClassLoader
 	    aVMData.bootstrap("com.ibm.j9ddr.vm29.ROMClassWrapper", new Object[] {addr});
 	    classRep = getSource(aVMData);
