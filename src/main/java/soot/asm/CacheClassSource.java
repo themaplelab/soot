@@ -152,14 +152,15 @@ class CacheClassSource extends ClassSource {
 	System.out.println("We have a memory");
 	System.out.println(memory.getMemory());
 	IProcess proc = (IProcess)memory.getMemory();
-	//now add the memory source
-	memory.addMemorySource(this.cacheaddr, this.cachesize);
 	try{
 	    //setup DDR - init datatype
 	    assert proc != null : "Process should not be null";
 	    IVMData aVMData = VMDataFactory.getVMData(proc);
 	    assert  aVMData != null : "VMDATA should not be null";
 
+	    //now add the memory source                                                                                              
+	    memory.addMemorySource(this.cacheaddr, this.cachesize);
+	    
 	    //can force our wrapper to be loaded by J9DDRClassLoader
 	    aVMData.bootstrap("com.ibm.j9ddr.vm29.ROMClassWrapper", new Object[] {addr});
 	    classRep = getSource(aVMData);
