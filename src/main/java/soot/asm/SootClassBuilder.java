@@ -59,7 +59,7 @@ import soot.tagkit.Tag;
  * @author Aaloan Miftah
  */
 @SuppressWarnings({ "unchecked", "rawtypes" })
-class SootClassBuilder extends ClassVisitor {
+public class SootClassBuilder extends ClassVisitor {
 
   private TagBuilder tb;
   private final SootClass klass;
@@ -219,3 +219,4 @@ class SootClassBuilder extends ClassVisitor {
     getTagBuilder().visitAttribute(attr);
   }
 }
+

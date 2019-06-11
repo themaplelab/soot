@@ -75,7 +75,7 @@ import com.ibm.j9ddr.vm29.pointer.AbstractPointer;
  * 
  * @author Kristen Newbury
  */
-class CacheClassSource extends ClassSource {
+public class CacheClassSource extends ClassSource {
 
     private byte[] cookiesource;
     private byte[] classsource;
@@ -117,17 +117,10 @@ class CacheClassSource extends ClassSource {
 	    {
 		addr += ((long) cookiesource[i+24] & 0xffL) << (8 * i);
 	    }
-	
-	byte[] tempclasssource = tryWithMemModel(addr);	 
-	System.out.println("ROM array contents: ");
-	System.out.println(Arrays.toString(tempclasssource));
-	System.out.println("-------------");
-
-      
-	ClassReader clsr = new ClassReader(tempclasssource);
-	SootClassBuilder scb = new SootClassBuilder(sc);
-	clsr.accept(scb, ClassReader.SKIP_FRAMES);
+	      
 	Dependencies deps = new Dependencies();
+	SootClassBuilder scb = new SootClassBuilder(sc);
+	tryWithMemModel(addr, scb);
 	deps.typesToSignature.addAll(scb.deps);
 	return deps;
     } catch (Exception e) {
@@ -146,9 +139,8 @@ class CacheClassSource extends ClassSource {
     }
   }
 
-    byte[] tryWithMemModel(long addr){
+    void tryWithMemModel(long addr, SootClassBuilder scb){
 
-	byte[] classRep = null;
 	System.out.println("We have a memory");
 	System.out.println(memory.getMemory());
 	IProcess proc = (IProcess)memory.getMemory();
@@ -158,26 +150,29 @@ class CacheClassSource extends ClassSource {
 	    IVMData aVMData = VMDataFactory.getVMData(proc);
 	    assert  aVMData != null : "VMDATA should not be null";
 
-	    //now add the memory source                                                                                              
+	    //now add the memory source                                                                                  
 	    memory.addMemorySource(this.cacheaddr, this.cachesize);
 	    
 	    //can force our wrapper to be loaded by J9DDRClassLoader
-	    aVMData.bootstrap("com.ibm.j9ddr.vm29.ROMClassWrapper", new Object[] {addr});
-	    classRep = getSource(aVMData);
-	
+	    aVMData.bootstrap("com.ibm.j9ddr.vm29.ROMClassWrapper", new Object[] {addr, scb});
+	    //	    deps = getReader(aVMData);
+
+	    
 	}catch(Exception e){
 	    System.out.println("Could not setup ddr"+ e.getMessage());
 	    e.printStackTrace(System.out);
 	}
 	
-	return(classRep);
     }
 
-    byte[] getSource(IVMData aVMData) throws Exception{
+    Dependencies getReader(IVMData aVMData) throws Exception{
 	J9DDRClassLoader ddrClassLoader = aVMData.getClassLoader();
 	Class<?> clazz = ddrClassLoader.loadClass("com.ibm.j9ddr.vm29.ROMClassWrapper");
-	Method getClassMethod = clazz.getDeclaredMethod("getClassRep", null);
-        byte[] source = (byte[])getClassMethod.invoke(null);
-	return source;
+
+	//trial for something
+	Method getDependenciesMethod = clazz.getDeclaredMethod("getDependencies", null);
+	Dependencies deps = (Dependencies)getDependenciesMethod.invoke(null);
+	
+	return deps;
     }
 }

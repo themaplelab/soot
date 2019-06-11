@@ -29,6 +29,7 @@ import com.ibm.j9ddr.IBootstrapRunnable;
 import com.ibm.j9ddr.IVMData;
 import com.ibm.j9ddr.vm29.pointer.generated.J9ROMClassPointer;
 import com.ibm.j9ddr.vm29.pointer.generated.J9UTF8Pointer;
+import com.ibm.j9ddr.vm29.pointer.helper.J9UTF8Helper;
 
 import com.ibm.j9ddr.vm29.j9.DataType;
 import com.ibm.j9ddr.vm29.pointer.generated.J9JavaVMPointer;
@@ -36,56 +37,67 @@ import com.ibm.j9ddr.vm29.pointer.helper.J9RASHelper;
 import com.ibm.j9ddr.vm29.pointer.generated.J9SharedClassConfigPointer;
 import com.ibm.j9ddr.vm29.pointer.generated.J9SharedClassCacheDescriptorPointer;
 
+import org.objectweb.asm.ClassWriter;
+import org.objectweb.asm.ClassReader;
+import org.objectweb.asm.Opcodes;
+import org.objectweb.asm.ClassVisitor;
+
+import com.ibm.j9ddr.tools.ddrinteractive.CacheMemorySource;
+
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
+
+//this organization is not great, later we can refactor
+//its too entangled with soot atm
+import soot.javaToJimple.IInitialResolver.Dependencies;
+import soot.SootClass;
+import soot.asm.CacheClassSource;
+import soot.asm.SootClassBuilder;
+
+//this wrapper is the reader
+
+/*                                                                                                                          
+ * This implementation strongly relies upon the visitor invoke pattern defined in ASM Classreader:                                                             
+ * https://gitlab.ow2.org/asm/asm/blob/ASM_5_2/src/org/objectweb/asm/ClassReader.java                                       
+ * HOWEVER, did not want inheritance bc need to avoid asm ClassReader constructor behaviour which relies upon                              
+ * many hardcoded indices                                                                                                                          
+ */
+
 public class ROMClassWrapper implements IBootstrapRunnable{
 
     private J9ROMClassPointer pointer;
-    private static byte[] classrep;
-    private final static String J9VM_ADDRESS_PROPERTY = "com.ibm.j9ddr.vmaddr";
+    private static ClassVisitor classVisitor;
     
     public void run(IVMData vmData, Object[] userData){
-	    
+
 	Long addr = new Long((long)userData[0]);
-	
-	System.out.println("TESTING THE WRAPPER!");
-	System.out.println(addr);
+	this.pointer = J9ROMClassPointer.cast(addr);
 
-	System.out.println("THECLASSLOADER OF J9ClassPointer WILL BE: ");
-        System.out.println(J9ROMClassPointer.class.getClassLoader());
+	this.classVisitor = (SootClassBuilder)userData[1];
+        accept(this.classVisitor);
+    }
 
-	pointer = J9ROMClassPointer.cast(addr);
+    public static ClassVisitor getClassVisitor(){
+	return classVisitor;
+    }
 
+    public void accept(final ClassVisitor classVisitor) {
 
-	
 	try{
-	    System.out.println("Major version");
-        System.out.println(pointer.majorVersion());
-
-	    System.out.println("Intermediate len: ");
-	System.out.println(pointer.intermediateClassDataLength());
-
-	
-	System.out.println("superclassNameEA");
-	System.out.println(pointer.superclassNameEA());
-	/*J9UTF8Pointer name = pointer.superclassNameEA();
-	if (!name.isNull()){
-	    System.out.println("RUNTESTsuperNAME");
-	    //System.out.println(name);
-	}else{
-	    System.out.println("FAILED to get super name");
-	    }*/
-	
-	System.out.println("Major version");
-	System.out.println(pointer.majorVersion());
-	
-	}catch (Exception e){
-	    System.out.println("Cannot get pointer name" + e.getMessage());
+	    int version = pointer.majorVersion().intValue();
+	    int modifiers = pointer.modifiers().intValue();
+	    String classname = J9UTF8Helper.stringValue(pointer.className());
+	    String superclassname = J9UTF8Helper.stringValue(pointer.superclassName());
+	    
+	    //header class info
+	    // version, int access, String name, String signature, String superName, String[] interfaces
+	    classVisitor.visit(version, modifiers, classname, null, superclassname, null);
+	    
+	}catch(Exception e){
+	    System.out.println("Issue in visitor pattern driving: " + e.getMessage());
 	    e.printStackTrace(System.out);
 	}
-	this.classrep = new byte[10];
+	//finish up
+	classVisitor.visitEnd();
     }
-
-    public static byte[] getClassRep(){
-	return classrep;
-    }
-
 }
