@@ -154,7 +154,7 @@ public class CacheClassSource extends ClassSource {
 	    memory.addMemorySource(this.cacheaddr, this.cachesize);
 	    
 	    //can force our wrapper to be loaded by J9DDRClassLoader
-	    aVMData.bootstrap("com.ibm.j9ddr.vm29.ROMClassWrapper", new Object[] {addr, scb});
+	    aVMData.bootstrap("com.ibm.j9ddr.vm29.ROMClassWrapper", new Object[] {addr, scb, memory});
 	    //	    deps = getReader(aVMData);
 
 	    

@@ -48,6 +48,11 @@ public class CacheMemorySingleton{
     public CacheMemory getMemory(){
 	return memory;
     }
+
+    public CacheMemorySource getMemorySource(){
+	return memorySource;
+    }
+    
     public void addMemorySource(long addr, int size){
 	if (cacheMemorySingleton != null && memorySource == null) {
 	    memorySource = new CacheMemorySource(addr, size);

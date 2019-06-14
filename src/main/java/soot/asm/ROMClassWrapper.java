@@ -22,7 +22,6 @@ package com.ibm.j9ddr.vm29;
  * #L%                                                                                                                                   
  */
 
-
 import com.ibm.j9ddr.CorruptDataException;
 import com.ibm.j9ddr.NullPointerDereference;
 import com.ibm.j9ddr.IBootstrapRunnable;
@@ -30,19 +29,27 @@ import com.ibm.j9ddr.IVMData;
 import com.ibm.j9ddr.vm29.pointer.generated.J9ROMClassPointer;
 import com.ibm.j9ddr.vm29.pointer.generated.J9UTF8Pointer;
 import com.ibm.j9ddr.vm29.pointer.helper.J9UTF8Helper;
+import com.ibm.j9ddr.vm29.j9.ROMHelp;
+import com.ibm.j9ddr.vm29.pointer.generated.J9ROMMethodPointer;
 
 import com.ibm.j9ddr.vm29.j9.DataType;
 import com.ibm.j9ddr.vm29.pointer.generated.J9JavaVMPointer;
 import com.ibm.j9ddr.vm29.pointer.helper.J9RASHelper;
 import com.ibm.j9ddr.vm29.pointer.generated.J9SharedClassConfigPointer;
 import com.ibm.j9ddr.vm29.pointer.generated.J9SharedClassCacheDescriptorPointer;
+import com.ibm.j9ddr.vm29.pointer.generated.J9ROMNameAndSignaturePointer;
+import com.ibm.j9ddr.vm29.pointer.helper.J9MethodHelper;
+import com.ibm.j9ddr.vm29.pointer.helper.J9ROMMethodHelper;
 
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.ClassVisitor;
+import org.objectweb.asm.MethodVisitor;
+import org.objectweb.asm.Label;
 
 import com.ibm.j9ddr.tools.ddrinteractive.CacheMemorySource;
+import com.ibm.j9ddr.tools.ddrinteractive.CacheMemory;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
@@ -53,8 +60,7 @@ import soot.javaToJimple.IInitialResolver.Dependencies;
 import soot.SootClass;
 import soot.asm.CacheClassSource;
 import soot.asm.SootClassBuilder;
-
-//this wrapper is the reader
+import soot.asm.CacheMemorySingleton;
 
 /*                                                                                                                          
  * This implementation strongly relies upon the visitor invoke pattern defined in ASM Classreader:                                                             
@@ -66,6 +72,7 @@ import soot.asm.SootClassBuilder;
 public class ROMClassWrapper implements IBootstrapRunnable{
 
     private J9ROMClassPointer pointer;
+    private CacheMemorySingleton cacheMem;
     private static ClassVisitor classVisitor;
     
     public void run(IVMData vmData, Object[] userData){
@@ -74,7 +81,12 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 	this.pointer = J9ROMClassPointer.cast(addr);
 
 	this.classVisitor = (SootClassBuilder)userData[1];
-        accept(this.classVisitor);
+
+	//need this for method iter, getting a bit much to have everyone here
+	this.cacheMem = (CacheMemorySingleton)userData[2];
+
+	accept(this.classVisitor);
+
     }
 
     public static ClassVisitor getClassVisitor(){
@@ -85,13 +97,23 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 
 	try{
 	    int version = pointer.majorVersion().intValue();
-	    int modifiers = pointer.modifiers().intValue();
+	    int classModifiers = pointer.modifiers().intValue();
 	    String classname = J9UTF8Helper.stringValue(pointer.className());
 	    String superclassname = J9UTF8Helper.stringValue(pointer.superclassName());
 	    
 	    //header class info
 	    // version, int access, String name, String signature, String superName, String[] interfaces
-	    classVisitor.visit(version, modifiers, classname, null, superclassname, null);
+	    classVisitor.visit(version, classModifiers, classname, "", superclassname, new String[] {});
+
+	    //method handling
+	    int methodCount = pointer.romMethodCount().intValue();
+	    //first method, therefore use index 1 for loop start
+	    J9ROMMethodPointer romMethod = pointer.romMethods();
+	    readMethod(romMethod);
+	    for(int i = 1; i < methodCount; i++){
+		romMethod = ROMHelp.nextROMMethod(romMethod);
+		readMethod(romMethod);
+	    }
 	    
 	}catch(Exception e){
 	    System.out.println("Issue in visitor pattern driving: " + e.getMessage());
@@ -99,5 +121,39 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 	}
 	//finish up
 	classVisitor.visitEnd();
+    }
+
+    void readMethod(J9ROMMethodPointer romMethod) throws CorruptDataException{
+	//method info                                                                                           
+	int methodModifiers = romMethod.modifiers().intValue();
+	J9ROMNameAndSignaturePointer nameAndSignature = romMethod.nameAndSignature();
+	String name = J9UTF8Helper.stringValue(nameAndSignature.name());
+	String signature= J9UTF8Helper.stringValue(nameAndSignature.signature());
+
+	int maxStack = romMethod.maxStack().intValue();
+	int maxLocals = romMethod.tempCount().intValue() + romMethod.argCount().intValue();
+	int argCount = romMethod.argCount().intValue();
+	System.out.println("The name and sig: "+ name +" " + signature);
+
+	System.out.println("The max stack and max loc and arg count: "+ maxStack+" "+ maxLocals+" "+argCount );
+	int romMethodSize = J9ROMMethodHelper.bytecodeSize(romMethod).intValue();
+	System.out.println("The size of the method is :  "+romMethodSize);
+
+	long bytecodeSt = J9ROMMethodHelper.bytecodes(romMethod).longValue();
+	long bytecodeEnd = J9ROMMethodHelper.bytecodeEnd(romMethod).longValue();
+	System.out.println("the st and end of the bytes: " + bytecodeSt+"and "+bytecodeEnd);
+	//visitMethod(int access, String name, String desc, String signature, String[] exceptions)              
+	MethodVisitor mv = classVisitor.visitMethod(methodModifiers, name, signature, signature, new String[] {});
+	readMethodBody(bytecodeSt, bytecodeEnd, mv);
+	//for now
+        mv.visitMaxs(maxStack, maxLocals);
+	mv.visitEnd();
+    }
+
+    void readMethodBody(long bytecodeSt, long bytecodeEnd, MethodVisitor mv){
+	//just insert some no-ops for now...
+	mv.visitInsn(0);
+	mv.visitInsn(0);
+	mv.visitInsn(0);
     }
 }
