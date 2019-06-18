@@ -25,6 +25,11 @@ import java.io.File;
 import java.util.Arrays;
 import java.io.IOException;
 
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.util.ArrayList;
+import java.util.List;
+
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Type;
@@ -37,21 +42,41 @@ public class cacheSrcTest{
 
     private static File testDir;
     private static File classFile;
-    
+
+
+    	/*                                                                                                          
+         * for each test:                                                                                           
+         * Test.genExampleInput writes the classfile                                                                
+         * this.runSoot() gens the jimple                                                                           
+         */
+
     public static void main(String[] args) throws IOException{
 
-	/*
-	 * for each test:
-	 * Test.genExampleInput writes the classfile
-	 * this.runSoot() gens the jimple
-	 */
 
+	//read the tests to perform
+	String[] testsToRun = readFile();
+	
 	ClassWriter visitor = new ClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
 
-	ClassWriter specialvisitor = AllOpsTest.genExampleInput();
-	genExampleClassfile("AllOpsTest", specialvisitor);
-	runSoot("AllOpsTest");
-	
+	for(int i=0; i<testsToRun.length; i++){
+
+	    switch(testsToRun[i]){
+
+	    case "AllOpsTest":
+		ClassWriter specialvisitor = AllOpsTest.genExampleInput();
+		genExampleClassfile("AllOpsTest", specialvisitor);
+		runSoot("AllOpsTest");
+		break;
+	    case "MethodExampleTest":
+		MethodExampleTest.genExampleInput(visitor);
+		genExampleClassfile("MethodExampleTest", visitor);
+		runSoot("MethodExampleTest");
+		break;
+	    default:
+		System.out.println("Test in config file does not exist: "+ testsToRun[i]);
+		break;
+	    }
+	}
 	/*	AnnotatedAnnotatedClassTest.genExampleInput(visitor);
 	runSoot("AnnotatedAnnotatedClassTest");
 	
@@ -123,14 +148,7 @@ public class cacheSrcTest{
 	
 	LogicalOperationsTest.genExampleInput(visitor);
 	runSoot("LogicalOperationsTest");
-	*/
 
-	
-	
-	MethodExampleTest.genExampleInput(visitor);
-	genExampleClassfile("MethodExampleTest", visitor);
-	runSoot("MethodExampleTest");
-	/*
 	ModifiersTest.genExampleInput(visitor);
 	runSoot("ModifiersTest");
 	
@@ -163,6 +181,22 @@ public class cacheSrcTest{
 	*/
     }
 
+    /*
+     * Reads a config file for which tests to perform
+     */
+    
+    public static String[] readFile() throws IOException {
+        FileReader fileReader = new FileReader("/root/soot/src/main/java/soot/asm/tests/tests.config");
+        BufferedReader bufferedReader = new BufferedReader(fileReader);
+        List<String> lines = new ArrayList<String>();
+        String line = null;
+        while ((line = bufferedReader.readLine()) != null) {
+            lines.add(line);
+        }
+        bufferedReader.close();
+        return lines.toArray(new String[lines.size()]);
+    }
+    
     public static void genExampleClassfile(String classname, ClassWriter cv) throws IOException{
 	
 	testDir = new File("cacheTestClassfiles");
@@ -178,7 +212,7 @@ public class cacheSrcTest{
     private static void runSoot(String testclassname){
 
 	String fulltestname = testclassname + "Generated";
-	String[] commandLine = { "-pp", "-cp", testDir.getAbsolutePath(), "-f", "J", "-d", testDir.toString(), fulltestname};
+	String[] commandLine = { "-pp", "-cp", testDir.getAbsolutePath() +":/root/soot/src/main/java", "-f", "J", "-d", testDir.toString(), fulltestname};
 
 	System.out.println("Running test for: "+ fulltestname);
 	System.out.println("Command Line: " + Arrays.toString(commandLine));
