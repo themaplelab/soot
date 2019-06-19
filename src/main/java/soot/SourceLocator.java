@@ -238,6 +238,9 @@ public class SourceLocator {
         classProviders.add(new JimpleClassProvider());
         classProviders.add(new JavaClassProvider());
         break;
+    case Options.src_prec_only_cache:
+        classProviders.add(new CacheClassProvider());
+        break;
       case Options.src_prec_class:
         classProviders.add(classFileClassProvider);
         classProviders.add(new JimpleClassProvider());
