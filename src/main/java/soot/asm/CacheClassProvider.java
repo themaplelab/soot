@@ -60,12 +60,15 @@ public class CacheClassProvider implements ClassProvider {
     }else{
 	URL[] urls = null;
 	URL url = null;
+	URL testurl = null;
 	SharedClassURLClasspathHelper helper = null;
 	try{
 	    //TODO eventually replace this
 	    //use absolute path to classfile that we are trying to find class of
 	    url = new URL("file:///root/soot/tests/");
-	    urls = new URL[]{url};
+	    //hackish
+	    testurl = new URL("file:///root/soot/cacheTestClassfiles/");
+	    urls = new URL[]{url, testurl};
 	}catch (MalformedURLException e) {
 	    System.out.println("Bad URL provided");
 	    e.printStackTrace();
