@@ -38,6 +38,11 @@ import org.objectweb.asm.util.TraceClassVisitor;
 
 import soot.Main;
 
+/*                                                                                                          
+ * This class handles generating the jimple and classfiles for each 
+ * test specified in the tests.config file
+ */
+
 public class cacheSrcTest{
 
     private static File testDir;
@@ -206,13 +211,15 @@ public class cacheSrcTest{
 	String fullclassname = classname + "Generated";
 	classFile = new File(testDir, fullclassname+".class");
 	Files.write(cv.toByteArray(), classFile);
-	
+
+	//TODO could add check here that this step succeeded, file exists before trying next step
     }
 
     private static void runSoot(String testclassname){
 
 	String fulltestname = testclassname + "Generated";
-	String[] commandLine = { "-pp", "-cp", testDir.getAbsolutePath() +":/root/soot/src/main/java", "-f", "J", "-d", testDir.toString(), fulltestname};
+	//-allow-phantom-refs so that only? this file will be handled, dont care about rest
+	String[] commandLine = { "-pp", "-cp", testDir.getAbsolutePath() +":/root/soot/src/main/java", "-allow-phantom-refs", "-f", "J", "-d", testDir.toString(), fulltestname};
 
 	System.out.println("Running test for: "+ fulltestname);
 	System.out.println("Command Line: " + Arrays.toString(commandLine));
