@@ -34,6 +34,8 @@ rm srctest.out
 #use the config file for which tests were executed, to diff                                                         
 while IFS= read -r simpleTestname; do
 
+rm report.txt
+    
 testname=${simpleTestname}Generated
     
     echo "########################################################"
@@ -68,12 +70,23 @@ if [ ! -f ./cacheTestCacheSrcJimple/$jimple ]; then
     echo "jimple file $cachejimple not generated"
     echo "########################################################"
 
+    echo "########################################################" >> report.txt
+    echo "Test failed at cache->jimple:" >> report.txt
+    echo "jimple file $cachejimple not generated" >> report.txt
+    echo "########################################################" >> report.txt
+
+    
 elif [ ! -f ./cacheTestClassfiles/$jimple ]; then
     echo "########################################################"
     echo "Test failed at class->jimple:"
     echo "jimple file $classjimple not generated"
     echo "########################################################"
-	
+
+    echo "########################################################" >> report.txt
+    echo "Test failed at class->jimple:" >> report.txt
+    echo "jimple file $classjimple not generated" >> report.txt
+    echo "########################################################" >> report.txt
+    
 else
 
     #files exist
@@ -81,12 +94,24 @@ else
 	echo "########################################################"
 	echo "Test failed: ./cacheTestClassfiles/$jimple and ./cacheTestCacheSrcJimple/$jimple contain differences."
 	echo "########################################################"
+
+	echo "########################################################" >> report.txt
+        echo "Test failed: ./cacheTestClassfiles/$jimple and ./cacheTestCacheSrcJimple/$jimple contain differences." >> report.txt
+        echo "########################################################" >> report.txt
+
 	mkdir diffs
 	diff -y --left-column ./cacheTestClassfiles/$jimple ./cacheTestCacheSrcJimple/$jimple >> diffs/$simpleTestname.txt
+	diff -y --left-column ./cacheTestClassfiles/$jimple ./cacheTestCacheSrcJimple/$jimple >> diffs/$simpleTestname.txt >> report.txt
+	
     else
 	echo "########################################################"
 	echo "Test passed: ./cacheTestClassfiles/$jimple and ./cacheTestCacheSrcJimple/$jimple are same."
 	echo "########################################################"
+
+	echo "########################################################" >> report.txt
+        echo "Test passed: ./cacheTestClassfiles/$jimple and ./cacheTestCacheSrcJimple/$jimple are same." >> report.txt
+        echo "########################################################" >> report.txt
+
     fi
     
      fi
@@ -97,5 +122,9 @@ else
     echo "########################################################"
     echo "Generating classfiles and class->jimple step failed"
     echo "########################################################"
-    
+
+    echo "########################################################" >> report.txt
+    echo "Generating classfiles and class->jimple step failed" >> report.txt
+    echo "########################################################" >> report.txt
+
 fi
