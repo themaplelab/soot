@@ -41,11 +41,19 @@ public class MethodExampleTest {
 		MethodVisitor mv;
 
 		visitor.visit(Opcodes.V1_1, Opcodes.ACC_PUBLIC + Opcodes.ACC_SUPER,
-				"MethodExampleTestGenerated", null, "java/lang/Object", null);
+			      "MethodExampleTestGenerated", null, "java/lang/Object", null);
 		visitor.visitSource("Bean.java", null);
 		{
 		fv = visitor.visitField(Opcodes.ACC_PRIVATE, "f", "I", null, null);
 		fv.visitEnd();
+		}
+		//make this generated class executable (doesnt need to be...)
+		{
+		    mv = visitor.visitMethod(Opcodes.ACC_PUBLIC+Opcodes.ACC_STATIC, "main", "([Ljava/lang/String;)V", null, null);
+		    mv.visitCode();
+		    mv.visitInsn(Opcodes.RETURN);
+		    mv.visitMaxs(0, 0);
+		    mv.visitEnd();
 		}
 		{
 		mv = visitor.visitMethod(Opcodes.ACC_PUBLIC, "<init>", "()V", null, null);
@@ -64,7 +72,7 @@ public class MethodExampleTest {
 		mv.visitJumpInsn(Opcodes.IFLT, l0);
 		mv.visitVarInsn(Opcodes.ALOAD, 0);
 		mv.visitVarInsn(Opcodes.ILOAD, 1);
-		mv.visitFieldInsn(Opcodes.PUTFIELD, "soot/asm/tests/targets/Bean", "f", "I");
+		mv.visitFieldInsn(Opcodes.PUTFIELD, "MethodExampleTestGenerated", "f", "I");
 		Label l1 = new Label();
 		mv.visitJumpInsn(Opcodes.GOTO, l1);
 		mv.visitLabel(l0);
@@ -81,7 +89,7 @@ public class MethodExampleTest {
 		mv = visitor.visitMethod(Opcodes.ACC_PUBLIC, "getF", "()I", null, null);
 		mv.visitCode();
 		mv.visitVarInsn(Opcodes.ALOAD, 0);
-		mv.visitFieldInsn(Opcodes.GETFIELD, "soot/asm/tests/targets/Bean", "f", "I");
+		mv.visitFieldInsn(Opcodes.GETFIELD, "MethodExampleTestGenerated", "f", "I");
 		mv.visitInsn(Opcodes.IRETURN);
 		mv.visitMaxs(0, 0);
 		mv.visitEnd();
@@ -91,7 +99,7 @@ public class MethodExampleTest {
 		mv.visitCode();
 		mv.visitVarInsn(Opcodes.ALOAD, 0);
 		mv.visitVarInsn(Opcodes.ILOAD, 1);
-		mv.visitFieldInsn(Opcodes.PUTFIELD, "soot/asm/tests/targets/Bean", "f", "I");
+		mv.visitFieldInsn(Opcodes.PUTFIELD, "MethodExampleTestGenerated", "f", "I");
 		mv.visitInsn(Opcodes.RETURN);
 		mv.visitMaxs(0, 0);
 		mv.visitEnd();
