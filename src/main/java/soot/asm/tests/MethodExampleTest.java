@@ -34,7 +34,7 @@ import org.objectweb.asm.ClassWriter;
  * @author Tobias Hamann, Florian Kuebler, Dominik Helm, Lukas Sommer, Kristen Newbury
  *
  */
-public class MethodExampleTest {
+public class MethodExampleTest extends AbstractCacheSrcTest{
 
  	public static void genExampleInput(ClassWriter visitor) {
 		FieldVisitor fv;
@@ -44,62 +44,62 @@ public class MethodExampleTest {
 			      "MethodExampleTestGenerated", null, "java/lang/Object", null);
 		visitor.visitSource("Bean.java", null);
 		{
-		fv = visitor.visitField(Opcodes.ACC_PRIVATE, "f", "I", null, null);
+		fv = visitor.visitField(ACC_PRIVATE, "f", "I", null, null);
 		fv.visitEnd();
 		}
 		//make this generated class executable (doesnt need to be...)
 		{
-		    mv = visitor.visitMethod(Opcodes.ACC_PUBLIC+Opcodes.ACC_STATIC, "main", "([Ljava/lang/String;)V", null, null);
+		    mv = visitor.visitMethod(Opcodes.ACC_PUBLIC, "<init>", "()V", null, null);
 		    mv.visitCode();
 		    mv.visitInsn(Opcodes.RETURN);
 		    mv.visitMaxs(0, 0);
 		    mv.visitEnd();
 		}
 		{
-		mv = visitor.visitMethod(Opcodes.ACC_PUBLIC, "<init>", "()V", null, null);
+
 		mv.visitCode();
-		mv.visitVarInsn(Opcodes.ALOAD, 0);
-		mv.visitMethodInsn(Opcodes.INVOKESPECIAL, "java/lang/Object", "<init>", "()V", false);
+		mv.visitVarInsn(ALOAD, 0);
+		mv.visitMethodInsn(INVOKESPECIAL, "java/lang/Object", "<init>", "()V", false);
 		mv.visitInsn(Opcodes.RETURN);
 		mv.visitMaxs(0, 0);
 		mv.visitEnd();
 		}
 		{
-		mv = visitor.visitMethod(Opcodes.ACC_PUBLIC, "checkAndSetF", "(I)V", null, null);
+
 		mv.visitCode();
-		mv.visitVarInsn(Opcodes.ILOAD, 1);
+		mv.visitVarInsn(ILOAD, 1);
 		Label l0 = new Label();
-		mv.visitJumpInsn(Opcodes.IFLT, l0);
-		mv.visitVarInsn(Opcodes.ALOAD, 0);
-		mv.visitVarInsn(Opcodes.ILOAD, 1);
-		mv.visitFieldInsn(Opcodes.PUTFIELD, "MethodExampleTestGenerated", "f", "I");
+		mv.visitJumpInsn(IFLT, l0);
+		mv.visitVarInsn(ALOAD, 0);
+		mv.visitVarInsn(ILOAD, 1);
+		mv.visitFieldInsn(PUTFIELD, "MethodExampleTestGenerated", "f", "I");
 		Label l1 = new Label();
-		mv.visitJumpInsn(Opcodes.GOTO, l1);
+		mv.visitJumpInsn(GOTO, l1);
 		mv.visitLabel(l0);
-		mv.visitTypeInsn(Opcodes.NEW, "java/lang/IllegalArgumentException");
-		mv.visitInsn(Opcodes.DUP);
-		mv.visitMethodInsn(Opcodes.INVOKESPECIAL, "java/lang/IllegalArgumentException", "<init>", "()V", false);
-		mv.visitInsn(Opcodes.ATHROW);
+		mv.visitTypeInsn(NEW, "java/lang/IllegalArgumentException");
+		mv.visitInsn(DUP);
+		mv.visitMethodInsn(INVOKESPECIAL, "java/lang/IllegalArgumentException", "<init>", "()V", false);
+		mv.visitInsn(ATHROW);
 		mv.visitLabel(l1);
 		mv.visitInsn(Opcodes.RETURN);
 		mv.visitMaxs(0, 0);
 		mv.visitEnd();
 		}
 		{
-		mv = visitor.visitMethod(Opcodes.ACC_PUBLIC, "getF", "()I", null, null);
+
 		mv.visitCode();
-		mv.visitVarInsn(Opcodes.ALOAD, 0);
-		mv.visitFieldInsn(Opcodes.GETFIELD, "MethodExampleTestGenerated", "f", "I");
-		mv.visitInsn(Opcodes.IRETURN);
+		mv.visitVarInsn(ALOAD, 0);
+		mv.visitFieldInsn(GETFIELD, "MethodExampleTestGenerated", "f", "I");
+		mv.visitInsn(Opcodes.RETURN);
 		mv.visitMaxs(0, 0);
 		mv.visitEnd();
 		}
 		{
-		mv = visitor.visitMethod(Opcodes.ACC_PUBLIC, "setF", "(I)V", null, null);
+
 		mv.visitCode();
-		mv.visitVarInsn(Opcodes.ALOAD, 0);
-		mv.visitVarInsn(Opcodes.ILOAD, 1);
-		mv.visitFieldInsn(Opcodes.PUTFIELD, "MethodExampleTestGenerated", "f", "I");
+		mv.visitVarInsn(ALOAD, 0);
+		mv.visitVarInsn(ILOAD, 1);
+		mv.visitFieldInsn(PUTFIELD, "MethodExampleTestGenerated", "f", "I");
 		mv.visitInsn(Opcodes.RETURN);
 		mv.visitMaxs(0, 0);
 		mv.visitEnd();

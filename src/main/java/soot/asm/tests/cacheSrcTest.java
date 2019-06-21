@@ -34,7 +34,7 @@ import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.Opcodes;
-import org.objectweb.asm.util.TraceClassVisitor;
+import org.objectweb.asm.ClassWriter;
 
 import soot.Main;
 
@@ -77,113 +77,167 @@ public class cacheSrcTest{
 		genExampleClassfile("MethodExampleTest", visitor);
 		runSoot("MethodExampleTest");
 		break;
-	    default:
-		System.out.println("Test in config file does not exist: "+ testsToRun[i]);
+	    case "ReturnsTest":
+		ReturnsTest.genExampleInput(visitor);
+		genExampleClassfile("ReturnsTest", visitor);
+		runSoot("ReturnsTest");
 		break;
+	    case "AnnotatedAnnotatedClassTest":
+		AnnotatedAnnotatedClassTest.genExampleInput(visitor);
+		genExampleClassfile("AnnotatedAnnotatedClassTest", visitor);
+		runSoot("AnnotatedAnnotatedClassTest");
+		break;
+	    case "AnnotatedAnnotationTest":
+		AnnotatedAnnotationTest.genExampleInput(visitor);
+		genExampleClassfile("AnnotatedAnnotationTest", visitor);
+		runSoot("AnnotatedAnnotationTest");
+		break;
+	    case "AnnotatedClassTest":
+		AnnotatedClassTest.genExampleInput(visitor);
+		genExampleClassfile("AnnotatedClassTest", visitor);
+		runSoot("AnnotatedClassTest");
+		break;
+	    case "AnnotatedFieldTest":
+		AnnotatedFieldTest.genExampleInput(visitor);
+		genExampleClassfile("AnnotatedFieldTest", visitor);
+		runSoot("AnnotatedFieldTest");
+		break;
+	    case "AnnotatedMethodTest":
+		AnnotatedMethodTest.genExampleInput(visitor);
+		genExampleClassfile("AnnotatedMethodTest", visitor);
+		runSoot("AnnotatedMethodTest");
+		break;
+	    case "AnnotatedParameterTest":
+		AnnotatedParameterTest.genExampleInput(visitor);
+		genExampleClassfile("AnnotatedParameterTest", visitor);
+		runSoot("AnnotatedParameterTest");
+		break;
+	    case "AnnotationTest":
+		AnnotationTest.genExampleInput(visitor);
+		genExampleClassfile("AnnotationTest", visitor);
+		runSoot("AnnotationTest");
+		break;
+	    case "ArithmeticTest":
+		ArithmeticTest.genExampleInput(visitor);
+		genExampleClassfile("ArithmeticTest", visitor);
+		runSoot("ArithmeticTest");
+		break;
+	    case "ArraysTest":
+		ArraysTest.genExampleInput(visitor);
+		genExampleClassfile("ArraysTest", visitor);
+		runSoot("ArraysTest");
+		break;
+	    case "CompareArithmeticInstructions2Test":
+		CompareArithmeticInstructions2Test.genExampleInput(visitor);
+		genExampleClassfile("CompareArithmeticInstructions2Test", visitor);
+		runSoot("CompareArithmeticInstructions2Test");
+		break;
+	    case "CompareArithmeticInstructionsTest":
+		CompareArithmeticInstructionsTest.genExampleInput(visitor);
+		genExampleClassfile("CompareArithmeticInstructionsTest", visitor);
+		runSoot("CompareArithmeticInstructionsTest");
+		break;
+	    case "CompareInstructionsTest":
+		CompareInstructionsTest.genExampleInput(visitor);
+		genExampleClassfile("CompareInstructionsTest", visitor);
+		runSoot("CompareInstructionsTest");
+		break;
+	    case "ConstantPoolTest":
+		ConstantPoolTest.genExampleInput(visitor);
+		genExampleClassfile("ConstantPoolTest", visitor);
+		runSoot("ConstantPoolTest");
+		break;
+	    case "ControlStructuresTest":
+		ControlStructuresTest.genExampleInput(visitor);
+		genExampleClassfile("ControlStructuresTest", visitor);
+		runSoot("ControlStructuresTest");
+		break;
+	    case "DupsTest":
+		DupsTest.genExampleInput(visitor);
+		genExampleClassfile("DupsTest", visitor);
+		runSoot("DupsTest");
+		break;
+	    case "EnumTest":
+		EnumTest.genExampleInput(visitor);
+		genExampleClassfile("EnumTest", visitor);
+		runSoot("EnumTest");
+		break;
+	    case "ExceptionTest":
+		ExceptionTest.genExampleInput(visitor);
+		genExampleClassfile("ExceptionTest", visitor);
+		runSoot("ExceptionTest");
+		break;
+	    case "ExtendedArithmeticLibTest":
+		ExtendedArithmeticLibTest.genExampleInput(visitor);
+		genExampleClassfile("ExtendedArithmeticLibTest", visitor);
+		runSoot("ExtendedArithmeticLibTest");
+		break;
+	    case "InnerClass2Test":
+		InnerClass2Test.genExampleInput(visitor);
+		genExampleClassfile("InnerClass2Test", visitor);
+		runSoot("InnerClass2Test");
+		break;
+	    case "InnerClassTest":
+		InnerClassTest.genExampleInput(visitor);
+		genExampleClassfile("InnerClassTest", visitor);
+		runSoot("InnerClassTest");
+		break;
+	    case "InstanceOfCastsTest":
+		InstanceOfCastsTest.genExampleInput(visitor);
+		genExampleClassfile("InstanceOfCastsTest", visitor);
+		runSoot("InstanceOfCastsTest");
+		break;
+	    case "InterfaceTest":
+		InterfaceTest.genExampleInput(visitor);
+		genExampleClassfile("InterfaceTest", visitor);
+		runSoot("InterfaceTest");
+		break;
+	    case "LineNumbersTest":
+		LineNumbersTest.genExampleInput(visitor);
+		genExampleClassfile("LineNumbersTest", visitor);
+		runSoot("LineNumbersTest");
+		break;
+	    case "LogicalOperationsTest":
+		LogicalOperationsTest.genExampleInput(visitor);
+		genExampleClassfile("LogicalOperationsTest", visitor);
+		runSoot("LogicalOperationsTest");
+		break;
+	    case "ModifiersTest":
+		ModifiersTest.genExampleInput(visitor);
+		genExampleClassfile("ModifiersTest", visitor);
+		runSoot("ModifiersTest");
+		break;
+	    case "MonitorTest":
+		MonitorTest.genExampleInput(visitor);
+		genExampleClassfile("MonitorTest", visitor);
+		runSoot("MonitorTest");
+		break;
+	    case "NullTypesTest":
+		NullTypesTest.genExampleInput(visitor);
+		genExampleClassfile("NullTypesTest", visitor);
+		runSoot("NullTypesTest");
+		break;
+	    case "OuterClassTest":
+		OuterClassTest.genExampleInput(visitor);
+		genExampleClassfile("OuterClassTest", visitor);
+		runSoot("OuterClassTest");
+		break;
+	    case "StoresTest":
+		StoresTest.genExampleInput(visitor);
+		genExampleClassfile("StoresTest", visitor);
+		runSoot("StoresTest");
+		break;
+	    case "TryCatchTest":
+		TryCatchTest.genExampleInput(visitor);
+		genExampleClassfile("TryCatchTest", visitor);
+		runSoot("TryCatchTest");
+		break;
+	    default:
+                System.out.println("Test in config file does not exist: "+ testsToRun[i]);
+                break;
+
 	    }
 	}
-	/*	AnnotatedAnnotatedClassTest.genExampleInput(visitor);
-	runSoot("AnnotatedAnnotatedClassTest");
-	
-	AnnotatedAnnotationTest.genExampleInput(visitor);
-	runSoot("AnnotatedAnnotationTest");
-	
-	AnnotatedClassTest.genExampleInput(visitor);
-	runSoot("AnnotatedClassTest");
-
-	AnnotatedFieldTest.genExampleInput(visitor);
-	runSoot("AnnotatedFieldTest");
-	
-	AnnotatedMethodTest.genExampleInput(visitor);
-	runSoot("AnnotatedMethodTest");
-	
-	AnnotatedParameterTest.genExampleInput(visitor);
-	runSoot("AnnotatedParameterTest");
-	
-	AnnotationTest.genExampleInput(visitor);
-	runSoot("AnnotationTest");
-	
-	ArithmeticTest.genExampleInput(visitor);
-	runSoot("ArithmeticTest");
-	
-	ArraysTest.genExampleInput(visitor);
-	runSoot("ArraysTest");
-
-	CompareArithmeticInstructions2Test.genExampleInput(visitor);
-	runSoot("CompareArithmeticInstructions2Test");
-
-	CompareArithmeticInstructionsTest.genExampleInput(visitor);
-	runSoot("CompareArithmeticInstructionsTest");
-
-	CompareInstructionsTest.genExampleInput(visitor);
-	runSoot("CompareInstructionsTest");
-
-	ConstantPoolTest.genExampleInput(visitor);
-	runSoot("ConstantPoolTest");
-	
-	ControlStructuresTest.genExampleInput(visitor);
-	runSoot("ControlStructuresTest");
-
-	DupsTest.genExampleInput(visitor);
-	runSoot("DupsTest");
-
-	EnumTest.genExampleInput(visitor);
-	runSoot("EnumTest");
-
-	ExceptionTest.genExampleInput(visitor);
-	runSoot("ExceptionTest");
-
-	ExtendedArithmeticLibTest.genExampleInput(visitor);
-	runSoot("ExtendedArithmeticLibTest");
-
-	InnerClass2Test.genExampleInput(visitor);
-	runSoot("InnerClass2Test");
-
-	InnerClassTest.genExampleInput(visitor);
-	runSoot("InnerClassTest");
-
-	InstanceOfCastsTest.genExampleInput(visitor);
-	runSoot("InstanceOfCastsTest");
-	
-	InterfaceTest.genExampleInput(visitor);
-	runSoot("InterfaceTest");
-	
-	LineNumbersTest.genExampleInput(visitor);
-	runSoot("LineNumbersTest");
-	
-	LogicalOperationsTest.genExampleInput(visitor);
-	runSoot("LogicalOperationsTest");
-
-	ModifiersTest.genExampleInput(visitor);
-	runSoot("ModifiersTest");
-	
-	MonitorTest.genExampleInput(visitor);
-	runSoot("MonitorTest");
-	
-	NullTypesTest.genExampleInput(visitor);
-	runSoot("NullTypesTest");
-	
-	OuterClassTest.genExampleInput(visitor);
-	runSoot("OuterClassTest");
-	
-	ReturnsTest.genExampleInput(visitor);
-	runSoot("ReturnsTest");
-	
-	StoresTest.genExampleInput(visitor);
-	runSoot("StoresTest");
-	
-	TryCatchTest.genExampleInput(visitor);
-	runSoot("TryCatchTest");
-	
-	ASMBackendMockingTest.genExampleInput(visitor);
-	runSoot("ASMBackendMockingTest");
-	
-	SootASMClassWriterTest.genExampleInput(visitor);
-	runSoot("SootASMClassWriterTest");
-	
-	MinimalJavaVersionTest.genExampleInput(visitor);
-	runSoot("MinimalJavaVersionTest");
-	*/
     }
 
     /*

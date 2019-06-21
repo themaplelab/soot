@@ -6,171 +6,172 @@ import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.ClassWriter;
 
-public class AllOpsTest{
+public class AllOpsTest extends AbstractCacheSrcTest{
 
     public static ClassWriter genExampleInput() {
 	MethodVisitor mv;
 
-        ClassWriter visitor = new ClassWriter(0);
+        ClassWriter cw = new ClassWriter(0);
 	
-	visitor.visit(Opcodes.V1_1, Opcodes.ACC_PUBLIC + Opcodes.ACC_SUPER,
-                                "AllOpsTestGenerated", null, "java/lang/Object", null);
+
+	cw.visit(V1_1, ACC_PUBLIC, "AllOpsTestGenerated", null, "java/lang/Object", null);
 
 
-
-	mv = visitor.visitMethod(Opcodes.ACC_PUBLIC, "<init>", "()V", null, null);
+	mv = cw.visitMethod(ACC_PUBLIC, "<init>", "()V", null, null);
 	mv.visitCode();
 
 		
-	mv.visitInsn(Opcodes.ACONST_NULL);
-	mv.visitInsn(Opcodes.ICONST_M1);
-	mv.visitInsn(Opcodes.ICONST_0);
-	mv.visitInsn(Opcodes.ICONST_1);
-	mv.visitInsn(Opcodes.ICONST_2);
-	mv.visitInsn(Opcodes.ICONST_3);
-	mv.visitInsn(Opcodes.ICONST_4);
-	mv.visitInsn(Opcodes.ICONST_5);
-	mv.visitInsn(Opcodes.LCONST_0);
-	mv.visitInsn(Opcodes.LCONST_1);
-	mv.visitInsn(Opcodes.FCONST_0);
-	mv.visitInsn(Opcodes.FCONST_1);
-	mv.visitInsn(Opcodes.FCONST_2);
-	mv.visitInsn(Opcodes.DCONST_0);
-	mv.visitInsn(Opcodes.DCONST_1);
-	mv.visitIntInsn(Opcodes.BIPUSH, 17);
-	mv.visitIntInsn(Opcodes.SIPUSH, 1000);
-	mv.visitVarInsn(Opcodes.ILOAD, 1);
-	mv.visitVarInsn(Opcodes.LLOAD, 1);
-	mv.visitVarInsn(Opcodes.FLOAD, 1);
-	mv.visitVarInsn(Opcodes.DLOAD, 1);
-	mv.visitVarInsn(Opcodes.ALOAD, 0);
-	mv.visitInsn(Opcodes.IALOAD);
-	mv.visitInsn(Opcodes.LALOAD);
-	mv.visitInsn(Opcodes.FALOAD);
-	mv.visitInsn(Opcodes.DALOAD);
-	mv.visitInsn(Opcodes.AALOAD);
-	mv.visitInsn(Opcodes.BALOAD);
-	mv.visitInsn(Opcodes.CALOAD);
-	mv.visitInsn(Opcodes.SALOAD);
-	mv.visitVarInsn(Opcodes.ISTORE, 0);
-	mv.visitVarInsn(Opcodes.LSTORE, 1);
-	mv.visitVarInsn(Opcodes.FSTORE, 0);
-	mv.visitVarInsn(Opcodes.DSTORE, 1);
-	mv.visitInsn(Opcodes.BASTORE);
-	mv.visitInsn(Opcodes.IASTORE);
-	mv.visitInsn(Opcodes.LASTORE);
-	mv.visitInsn(Opcodes.FASTORE);
-	mv.visitInsn(Opcodes.DASTORE);
-	mv.visitInsn(Opcodes.AASTORE);
-	mv.visitInsn(Opcodes.BASTORE);
-	mv.visitInsn(Opcodes.CASTORE);
-	mv.visitInsn(Opcodes.SASTORE);
-	mv.visitInsn(Opcodes.POP);
-	mv.visitInsn(Opcodes.DUP);
-	mv.visitInsn(Opcodes.IADD);
-	mv.visitInsn(Opcodes.LADD);
-	mv.visitInsn(Opcodes.FADD);
-	mv.visitInsn(Opcodes.DADD);
-	mv.visitInsn(Opcodes.ISUB);
-	mv.visitInsn(Opcodes.LSUB);
-	mv.visitInsn(Opcodes.FSUB);
-	mv.visitInsn(Opcodes.DSUB);
-	mv.visitInsn(Opcodes.IMUL);
-	mv.visitInsn(Opcodes.LMUL);
-	mv.visitInsn(Opcodes.FMUL);
-	mv.visitInsn(Opcodes.DMUL);
-	mv.visitInsn(Opcodes.IDIV);
-	mv.visitInsn(Opcodes.LDIV);
-	mv.visitInsn(Opcodes.FDIV);
-	mv.visitInsn(Opcodes.DDIV);
-	mv.visitInsn(Opcodes.IREM);
-	mv.visitInsn(Opcodes.LREM);
-	mv.visitInsn(Opcodes.FREM);
-	mv.visitInsn(Opcodes.DREM);
-	mv.visitInsn(Opcodes.INEG);
-	mv.visitInsn(Opcodes.FNEG);
-	mv.visitInsn(Opcodes.DNEG);
-	mv.visitInsn(Opcodes.ISHL);
-	mv.visitInsn(Opcodes.LSHL);
-	mv.visitInsn(Opcodes.ISHR);
-	mv.visitInsn(Opcodes.LSHR);
-	mv.visitInsn(Opcodes.IUSHR);
-	mv.visitInsn(Opcodes.LUSHR);
-	mv.visitInsn(Opcodes.IAND);
-	mv.visitInsn(Opcodes.LAND);
-	mv.visitInsn(Opcodes.IOR);
-	mv.visitInsn(Opcodes.LOR);
-	mv.visitInsn(Opcodes.IXOR);
-	mv.visitInsn(Opcodes.LXOR);
-	mv.visitInsn(Opcodes.I2L);
-	mv.visitInsn(Opcodes.I2F);
-	mv.visitInsn(Opcodes.I2D);
-	mv.visitInsn(Opcodes.L2I);
-	mv.visitInsn(Opcodes.L2F);
-	mv.visitInsn(Opcodes.L2D);
-	mv.visitInsn(Opcodes.F2I);
-	mv.visitInsn(Opcodes.F2L);
-	mv.visitInsn(Opcodes.F2D);
-	mv.visitInsn(Opcodes.D2I);
-	mv.visitInsn(Opcodes.D2L);
-	mv.visitInsn(Opcodes.D2F);
-	mv.visitInsn(Opcodes.I2B);
-	mv.visitInsn(Opcodes.I2C);
-	mv.visitInsn(Opcodes.I2S);
-	mv.visitInsn(Opcodes.LCMP);
-	mv.visitInsn(Opcodes.FCMPL);
-	mv.visitInsn(Opcodes.FCMPG);
-	mv.visitInsn(Opcodes.DCMPL);
-	mv.visitInsn(Opcodes.DCMPG);
+	mv.visitInsn(ACONST_NULL);
+	mv.visitInsn(ICONST_M1);
+	mv.visitInsn(ICONST_0);
+	mv.visitInsn(ICONST_1);
+	mv.visitInsn(ICONST_2);
+	mv.visitInsn(ICONST_3);
+	mv.visitInsn(ICONST_4);
+	mv.visitInsn(ICONST_5);
+	mv.visitInsn(LCONST_0);
+	mv.visitInsn(LCONST_1);
+	mv.visitInsn(FCONST_0);
+	mv.visitInsn(FCONST_1);
+	mv.visitInsn(FCONST_2);
+	mv.visitInsn(DCONST_0);
+	mv.visitInsn(DCONST_1);
+	mv.visitIntInsn(BIPUSH, 17);
+	mv.visitIntInsn(SIPUSH, 1000);
+	mv.visitVarInsn(ILOAD, 1);
+	mv.visitVarInsn(LLOAD, 1);
+	mv.visitVarInsn(FLOAD, 1);
+	mv.visitVarInsn(DLOAD, 1);
+	mv.visitVarInsn(ALOAD, 0);
+
+
+
+
+
+
+
+
+	mv.visitVarInsn(ISTORE, 0);
+	mv.visitVarInsn(LSTORE, 1);
+	mv.visitVarInsn(FSTORE, 0);
+	mv.visitVarInsn(DSTORE, 1);
+	mv.visitInsn(BASTORE);
+	mv.visitInsn(IASTORE);
+	mv.visitInsn(LASTORE);
+	mv.visitInsn(FASTORE);
+	mv.visitInsn(DASTORE);
+	mv.visitInsn(AASTORE);
+	mv.visitInsn(BASTORE);
+	mv.visitInsn(CASTORE);
+	mv.visitInsn(SASTORE);
+	mv.visitInsn(POP);
+	mv.visitInsn(DUP);
+	mv.visitInsn(IADD);
+	mv.visitInsn(LADD);
+	mv.visitInsn(FADD);
+	mv.visitInsn(DADD);
+	mv.visitInsn(ISUB);
+	mv.visitInsn(LSUB);
+	mv.visitInsn(FSUB);
+	mv.visitInsn(DSUB);
+	mv.visitInsn(IMUL);
+	mv.visitInsn(LMUL);
+	mv.visitInsn(FMUL);
+	mv.visitInsn(DMUL);
+	mv.visitInsn(IDIV);
+	mv.visitInsn(LDIV);
+	mv.visitInsn(FDIV);
+	mv.visitInsn(DDIV);
+	mv.visitInsn(IREM);
+	mv.visitInsn(LREM);
+	mv.visitInsn(FREM);
+	mv.visitInsn(DREM);
+	mv.visitInsn(INEG);
+	mv.visitInsn(FNEG);
+	mv.visitInsn(DNEG);
+	mv.visitInsn(ISHL);
+	mv.visitInsn(LSHL);
+	mv.visitInsn(ISHR);
+	mv.visitInsn(LSHR);
+	mv.visitInsn(IUSHR);
+	mv.visitInsn(LUSHR);
+	mv.visitInsn(IAND);
+	mv.visitInsn(LAND);
+	mv.visitInsn(IOR);
+	mv.visitInsn(LOR);
+	mv.visitInsn(IXOR);
+	mv.visitInsn(LXOR);
+	mv.visitInsn(I2L);
+	mv.visitInsn(I2F);
+	mv.visitInsn(I2D);
+	mv.visitInsn(L2I);
+	mv.visitInsn(L2F);
+	mv.visitInsn(L2D);
+	mv.visitInsn(F2I);
+	mv.visitInsn(F2L);
+	mv.visitInsn(F2D);
+	mv.visitInsn(D2I);
+	mv.visitInsn(D2L);
+	mv.visitInsn(D2F);
+	mv.visitInsn(I2B);
+	mv.visitInsn(I2C);
+	mv.visitInsn(I2S);
+	mv.visitInsn(LCMP);
+	mv.visitInsn(FCMPL);
+	mv.visitInsn(FCMPG);
+	mv.visitInsn(DCMPL);
+	mv.visitInsn(DCMPG);
 
 	Label l0 = new Label();
 	Label l1 = new Label();
 	mv.visitLabel(l0);
 	mv.visitLabel(l1);
 	
-	mv.visitJumpInsn(Opcodes.IFEQ, l1);
-	mv.visitJumpInsn(Opcodes.IFNE, l0);
-	mv.visitJumpInsn(Opcodes.IFLT, l0);
-	mv.visitJumpInsn(Opcodes.IFGE, l1);
-	mv.visitJumpInsn(Opcodes.IFGT, l0);
-	mv.visitJumpInsn(Opcodes.IFLE, l1);
-	mv.visitJumpInsn(Opcodes.IF_ICMPEQ, l1);
-	mv.visitJumpInsn(Opcodes.IF_ICMPNE, l0);
-	mv.visitJumpInsn(Opcodes.IF_ICMPLT, l0);
-	mv.visitJumpInsn(Opcodes.IF_ICMPGE, l1);
-	mv.visitJumpInsn(Opcodes.IF_ICMPGT, l0);
-	mv.visitJumpInsn(Opcodes.IF_ICMPLE, l1);
-	mv.visitJumpInsn(Opcodes.GOTO, l0);
-	mv.visitInsn(Opcodes.RETURN);
-	mv.visitInsn(Opcodes.IRETURN);
-	mv.visitInsn(Opcodes.LRETURN);
-	mv.visitInsn(Opcodes.FRETURN);
-	mv.visitInsn(Opcodes.DRETURN);
-	mv.visitInsn(Opcodes.ARETURN);
-	mv.visitInsn(Opcodes.RETURN);
-	mv.visitFieldInsn(Opcodes.GETSTATIC, "soot/asm/backend/targets/MyEnum", "JA", "Lsoot/asm/backend/targets/MyEnum;");
-	mv.visitFieldInsn(Opcodes.PUTSTATIC, "soot/asm/backend/targets/ConstantPool", "s2","Ljava/lang/String;");
-	mv.visitFieldInsn(Opcodes.GETFIELD, "soot/asm/backend/targets/ArithmeticLib", "rInt", "I");
-	mv.visitFieldInsn(Opcodes.PUTFIELD, "soot/asm/backend/targets/ArithmeticLib", "cInt", "I");
-	mv.visitMethodInsn(Opcodes.INVOKEVIRTUAL, "java/lang/Integer", "intValue","(Opcodes.)I", false);
-	mv.visitMethodInsn(Opcodes.INVOKESPECIAL, "java/lang/Object", "<init>", "(Opcodes.)V", false);
-	mv.visitMethodInsn(Opcodes.INVOKESTATIC, "java/lang/Integer", "valueOf","(Opcodes.I)Ljava/lang/Integer;", false);
-	mv.visitMethodInsn(Opcodes.INVOKEINTERFACE, "java/util/List", "add", "(Opcodes.Ljava/lang/Object;)Z", true);
-	mv.visitIntInsn(Opcodes.NEWARRAY, Opcodes.T_BOOLEAN);
-	mv.visitTypeInsn(Opcodes.ANEWARRAY, "java/lang/Object");
-	mv.visitInsn(Opcodes.ARRAYLENGTH);
-	mv.visitInsn(Opcodes.ATHROW);
-	mv.visitTypeInsn(Opcodes.CHECKCAST, "soot/asm/backend/targets/MyEnum");
-	mv.visitTypeInsn(Opcodes.INSTANCEOF, "[Lsoot/asm/backend/targets/Measurable;");
-	mv.visitInsn(Opcodes.MONITORENTER);
-	mv.visitInsn(Opcodes.MONITOREXIT);
-	mv.visitJumpInsn(Opcodes.IFNULL, l1);
-	mv.visitJumpInsn(Opcodes.IFNONNULL, l0);
+	mv.visitJumpInsn(IFEQ, l1);
+	mv.visitJumpInsn(IFNE, l0);
+	mv.visitJumpInsn(IFLT, l0);
+	mv.visitJumpInsn(IFGE, l1);
+	mv.visitJumpInsn(IFGT, l0);
+	mv.visitJumpInsn(IFLE, l1);
+	mv.visitJumpInsn(IF_ICMPEQ, l1);
+	mv.visitJumpInsn(IF_ICMPNE, l0);
+	mv.visitJumpInsn(IF_ICMPLT, l0);
+	mv.visitJumpInsn(IF_ICMPGE, l1);
+	mv.visitJumpInsn(IF_ICMPGT, l0);
+	mv.visitJumpInsn(IF_ICMPLE, l1);
+	mv.visitJumpInsn(GOTO, l0);
 
+
+
+
+
+
+
+	mv.visitFieldInsn(GETSTATIC, "soot/asm/backend/targets/MyEnum", "JA", "Lsoot/asm/backend/targets/MyEnum;");
+	mv.visitFieldInsn(PUTSTATIC, "soot/asm/backend/targets/ConstantPool", "s2","Ljava/lang/String;");
+	mv.visitFieldInsn(GETFIELD, "soot/asm/backend/targets/ArithmeticLib", "rInt", "I");
+	mv.visitFieldInsn(PUTFIELD, "soot/asm/backend/targets/ArithmeticLib", "cInt", "I");
+	mv.visitMethodInsn(INVOKEVIRTUAL, "java/lang/Integer", "intValue","()I", false);
+	mv.visitMethodInsn(INVOKESPECIAL, "java/lang/Object", "<init>", "()V", false);
+	mv.visitMethodInsn(INVOKESTATIC, "java/lang/Integer", "valueOf","(I)Ljava/lang/Integer;", false);
+	mv.visitMethodInsn(INVOKEINTERFACE, "java/util/List", "add", "(Ljava/lang/Object;)Z", true);
+
+	mv.visitTypeInsn(ANEWARRAY, "java/lang/Object");
+	mv.visitInsn(ARRAYLENGTH);
+	mv.visitInsn(ATHROW);
+	mv.visitTypeInsn(CHECKCAST, "soot/asm/backend/targets/MyEnum");
+	mv.visitTypeInsn(INSTANCEOF, "[Lsoot/asm/backend/targets/Measurable;");
+	mv.visitInsn(MONITORENTER);
+	mv.visitInsn(MONITOREXIT);
+	mv.visitJumpInsn(IFNULL, l1);
+	mv.visitJumpInsn(IFNONNULL, l0);
+
+
+	
 	mv.visitMaxs(100, 100);
 	mv.visitEnd();
 	
-	visitor.visitEnd();
-	return visitor;
+	cw.visitEnd();
+	return cw;
     }
 }
