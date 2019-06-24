@@ -186,7 +186,15 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 		ptr += 5;
 	    }
 	    else if(opcode == BCNames.JBmultianewarray){
-		mv.visitMultiANewArrayInsn(readClass(ptr + 1, c), src.getByte(ptr + 3) & 0xFF);  
+
+		int index = src.getShort(ptr+1);
+		
+		J9ROMConstantPoolItemPointer info = constantPool.add(index);
+
+		int dim = src.getByte(ptr + 3) & 0xFF;
+
+		String arrName = J9UTF8Helper.stringValue(J9ROMStringRefPointer.cast(info).utf8Data());
+		mv.visitMultiANewArrayInsn(arrName, dim);  
                 ptr += 4;
 	    }
 	    else if((opcode == BCNames.JBreturnFromConstructor) ||
