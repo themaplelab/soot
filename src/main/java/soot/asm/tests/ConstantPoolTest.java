@@ -56,7 +56,7 @@ public class ConstantPoolTest extends AbstractCacheSrcTest {
 		MethodVisitor mv;
 
 
-		cw.visit(V1_1, ACC_PUBLIC + ACC_SUPER, "ConstantPoolGenerated", null,
+		cw.visit(V1_1, ACC_PUBLIC + ACC_SUPER, "ConstantPoolTestGenerated", null,
 				"java/lang/Object", null);
 		cw.visitSource("ConstantPool.java", null);
 
@@ -68,11 +68,6 @@ public class ConstantPoolTest extends AbstractCacheSrcTest {
 		{
 		    fv = cw.visitField(ACC_PUBLIC + ACC_FINAL + ACC_STATIC, "s2",
 					"Ljava/lang/String;", null, null);
-			fv.visitEnd();
-		}
-		{
-		    fv = cw.visitField(ACC_PUBLIC + ACC_FINAL + ACC_STATIC, "o2",
-					"Ljava/lang/Object;", null, null);
 			fv.visitEnd();
 		}
 		{
