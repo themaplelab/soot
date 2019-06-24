@@ -40,7 +40,13 @@ import com.ibm.j9ddr.vm29.pointer.generated.J9SharedClassConfigPointer;
 import com.ibm.j9ddr.vm29.pointer.generated.J9SharedClassCacheDescriptorPointer;
 import com.ibm.j9ddr.vm29.pointer.generated.J9ROMNameAndSignaturePointer;
 import com.ibm.j9ddr.vm29.pointer.helper.J9MethodHelper;
+import com.ibm.j9ddr.vm29.pointer.helper.J9ROMClassHelper;
 import com.ibm.j9ddr.vm29.pointer.helper.J9ROMMethodHelper;
+import com.ibm.j9ddr.vm29.pointer.generated.J9ROMConstantPoolItemPointer;
+import com.ibm.j9ddr.vm29.pointer.generated.J9ROMSingleSlotConstantRefPointer;
+import com.ibm.j9ddr.vm29.pointer.generated.J9ROMStringRefPointer;
+import com.ibm.j9ddr.vm29.pointer.generated.J9ROMFieldRefPointer;
+import com.ibm.j9ddr.vm29.pointer.generated.J9ROMMethodRefPointer;
 
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.ClassReader;
@@ -72,6 +78,17 @@ import soot.asm.CacheMemorySingleton;
 
 public class ROMClassWrapper implements IBootstrapRunnable{
 
+    //TODO fix. currently stolen hardcode from https://github.com/eclipse/openj9/blob/v0.14.0-release/runtime/oti/j9nonbuilder.h#L1965
+    //the reason is that these are only defined in: com.ibm.j9ddr.vm29.structure.J9BCTranslationData
+    //and only sizeof is exposed in: emacs openj9/debugtools/DDR_VM/src/com/ibm/j9ddr/vm29/pointer/generated/J9DescriptionBitsPointer.java
+    //though somehow bytecode dumper can use ... https://github.com/eclipse/openj9/blob/v0.14.0-release/debugtools/DDR_VM/src/com/ibm/j9ddr/vm29/tools/ddrinteractive/commands/ByteCodeDumper.java#L96
+    
+    private int BCT_J9DescriptionCpTypeScalar  = 0;
+    private int BCT_J9DescriptionCpTypeObject = 1;
+    private int BCT_J9DescriptionCpTypeClass  = 2;
+    /////////////////////////////////////
+
+    
     private J9ROMClassPointer pointer;
     private CacheMemorySingleton cacheMem;
     private static ClassVisitor classVisitor;
@@ -104,6 +121,9 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 	    int classModifiers = pointer.modifiers().intValue();
 	    String classname = J9UTF8Helper.stringValue(pointer.className());
 	    String superclassname = J9UTF8Helper.stringValue(pointer.superclassName());
+
+	    //reference to constant pool
+	    J9ROMConstantPoolItemPointer constantPool = J9ROMClassHelper.constantPool(pointer);
 	    
 	    //header class info
 	    // version, int access, String name, String signature, String superName, String[] interfaces
@@ -113,10 +133,10 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 	    int methodCount = pointer.romMethodCount().intValue();
 	    //first method, therefore use index 1 for loop start
 	    J9ROMMethodPointer romMethod = pointer.romMethods();
-	    readMethod(romMethod);
+	    readMethod(romMethod, constantPool);
 	    for(int i = 1; i < methodCount; i++){
 		romMethod = ROMHelp.nextROMMethod(romMethod);
-		readMethod(romMethod);
+		readMethod(romMethod, constantPool);
 	    }
 	    
 	}catch(Exception e){
@@ -127,7 +147,7 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 	classVisitor.visitEnd();
     }
 
-    void readMethod(J9ROMMethodPointer romMethod) throws CorruptDataException{
+    void readMethod(J9ROMMethodPointer romMethod, J9ROMConstantPoolItemPointer constantPool) throws CorruptDataException{
 	//method info                                                                                           
 	int methodModifiers = romMethod.modifiers().intValue();
 	J9ROMNameAndSignaturePointer nameAndSignature = romMethod.nameAndSignature();
@@ -148,17 +168,17 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 	System.out.println("the st and end of the bytes: " + bytecodeSt+"and "+bytecodeEnd);
 	//visitMethod(int access, String name, String desc, String signature, String[] exceptions)              
 	MethodVisitor mv = classVisitor.visitMethod(methodModifiers, name, signature, signature, new String[] {});
-	readMethodBody(bytecodeSt, bytecodeEnd, mv);
+	readMethodBody(bytecodeSt, bytecodeEnd, mv, constantPool);
 	//for now
         mv.visitMaxs(maxStack, maxLocals);
 	mv.visitEnd();
     }
 
-    void readMethodBody(long bytecodeSt, long bytecodeEnd, MethodVisitor mv){
+    void readMethodBody(long bytecodeSt, long bytecodeEnd, MethodVisitor mv, J9ROMConstantPoolItemPointer constantPool) throws CorruptDataException{
 	//drives the visitor to define the body of the method
 	CacheMemorySource src = this.cacheMem.getMemorySource();
 	long ptr = bytecodeSt;
-
+	
 	//TODO parse the actual max string length for a str in the const pool
 	char[] c = new char[1000];
 	//for our targets, as we find them
@@ -167,6 +187,9 @@ public class ROMClassWrapper implements IBootstrapRunnable{
         while(ptr < bytecodeEnd){
 	    int offset = (int)(ptr - bytecodeSt);
 	    int opcode = (int)(src.getByte(ptr) & 0xFF);
+
+	    System.out.println("The opcode value is: "+ opcode);
+	    
 	    if((opcode == BCNames.JBnop) ||
 	       (opcode == BCNames.JBinvokeinterface2)){
 		ptr += 1;
@@ -389,35 +412,56 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 		ptr += 3;
 	    }
 	    else if(opcode == BCNames.JBldc){
-		mv.visitLdcInsn(readConst(src.getByte(ptr + 1) & 0xFF, c));
+		int index = src.getByte(ptr + 1)& 0xFF;
+		mv.visitLdcInsn(readConst(src.getByte(ptr + 1) & 0xFF, constantPool));
 		ptr += 2;
 	    }
 	    else if((opcode == BCNames.JBldcw) ||
 		    (opcode == BCNames.JBldc2lw) ||
 		    (opcode == BCNames.JBldc2dw)){
-		mv.visitLdcInsn(readConst(src.getUnsignedShort(ptr + 1), c));
+		int index = src.getUnsignedShort(ptr + 1);
+		mv.visitLdcInsn(readConst(src.getUnsignedShort(ptr + 1), constantPool));
 		ptr += 3;
 	    }
 	    else if((opcode == BCNames.JBgetstatic) ||
 		    (opcode == BCNames.JBputstatic) ||
 		    (opcode == BCNames.JBgetfield) ||
-		    (opcode == BCNames.JBputfield) ||
-		    (opcode == BCNames.JBinvokevirtual) ||
-		    (opcode == BCNames.JBinvokespecial) ||
-		    (opcode == BCNames.JBinvokestatic) ||
-		    (opcode == BCNames.JBinvokeinterface)) {
-		/*int cpIndex = items[src.getUnsignedShort(ptr + 1)];
-		boolean itf = src.getByte(cpIndex - 1) == ClassWriter.IMETH;
-		String iowner = readClass(cpIndex, c);
-		cpIndex = items[src.getUnsignedShort(cpIndex + 2)];
-		String iname = readUTF8(cpIndex, c);
-		String idesc = readUTF8(cpIndex + 2, c);
-		if (opcode < Opcodes.INVOKEVIRTUAL) {
-		    mv.visitFieldInsn(opcode, iowner, iname, idesc);
-		} else {
-		    mv.visitMethodInsn(opcode, iowner, iname, idesc, itf);
-		    }*/
-		if (opcode == Opcodes.INVOKEINTERFACE) {
+		    (opcode == BCNames.JBputfield)){ 
+
+		int index = src.getUnsignedShort(ptr+1);
+		
+		J9ROMConstantPoolItemPointer info = constantPool.add(index);
+		J9ROMFieldRefPointer romFieldRef = J9ROMFieldRefPointer.cast(info);
+		String owner = J9UTF8Helper.stringValue(J9ROMClassRefPointer.cast(constantPool.add(romFieldRef.classRefCPIndex())).name());
+
+		J9ROMNameAndSignaturePointer nameAndSig = romFieldRef.nameAndSignature();
+		String name = J9UTF8Helper.stringValue(nameAndSig.name());
+		String desc = J9UTF8Helper.stringValue(nameAndSig.signature());
+		mv.visitFieldInsn(opcode, owner, name, desc);
+		
+	    }else if((opcode == BCNames.JBinvokevirtual) ||
+                    (opcode == BCNames.JBinvokespecial) ||
+                    (opcode == BCNames.JBinvokestatic) ||
+                    (opcode == BCNames.JBinvokeinterface)){
+
+		int index = src.getUnsignedShort(ptr+1);
+
+		J9ROMMethodRefPointer romMethodRef = J9ROMMethodRefPointer.cast(info);
+		UDATA classRefCPIndex = romMethodRef.classRefCPIndex();
+		J9ROMConstantPoolItemPointer cpItem = constantPool.add(classRefCPIndex);
+		J9ROMClassRefPointer romClassRef = J9ROMClassRefPointer.cast(cpItem);
+		
+		String owner = J9UTF8Helper.stringValue(romClassRef.name());
+		
+		J9ROMNameAndSignaturePointer nameAndSig = romMethodRef.nameAndSignature();
+		String name = J9UTF8Helper.stringValue(nameAndSig.name());
+		String desc = J9UTF8Helper.stringValue(nameAndSig.signature()); 
+		
+		boolean itf = (opcode == BCNames.JBinvokeinterface);
+
+		mv.visitMethodInsn(opcode, owner, name, desc, itf);
+
+		if (itf) {
 		    ptr += 5;
 		} else {
 		    ptr += 3;
@@ -427,12 +471,12 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 	    else if (opcode == BCNames.JBinvokedynamic) {
 	    /*		    int cpIndex = items[src.getUnsignedShort(ptr + 1)];
 		int bsmIndex = context.bootstrapMethods[src.getUnsignedShort(cpIndex)];
-		Handle bsm = (Handle) readConst(src.getUnsignedShort(bsmIndex), c);
+		Handle bsm = (Handle) readConst(src.getUnsignedShort(bsmIndex), constantPool);
 		int bsmArgCount = src.getUnsignedShort(bsmIndex + 2);
 		Object[] bsmArgs = new Object[bsmArgCount];
 		bsmIndex += 4;
 		for (int i = 0; i < bsmArgCount; i++) {
-		    bsmArgs[i] = readConst(src.getUnsignedShort(bsmIndex), c);
+		    bsmArgs[i] = readConst(src.getUnsignedShort(bsmIndex), constantPool);
 		    bsmIndex += 2;
 		}
 		cpIndex = items[src.getUnsignedShort(cpIndex + 2)];
@@ -477,9 +521,28 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 	}
 	
     }
+
+    /*
+     * Reads a constant pool info entry
+     *
+     */
     
-    public Object readConst(final long address, final char[] buf) {
-	return "";
+    public Object readConst(final int index, J9ROMConstantPoolItemPointer constantPool) throws CorruptDataException{
+
+	J9ROMConstantPoolItemPointer info = constantPool.add(index);
+	J9ROMSingleSlotConstantRefPointer romSingleSlotConstantRef = J9ROMSingleSlotConstantRefPointer.cast(info);
+
+	if (!romSingleSlotConstantRef.cpType().eq(BCT_J9DescriptionCpTypeScalar)) {
+	    /* this is a string or class constant */
+	    //TODO check if this handles class internal name as well
+	    System.out.println("Constant pool str" + J9UTF8Helper.stringValue(J9ROMStringRefPointer.cast(info).utf8Data()));
+	    return J9UTF8Helper.stringValue(J9ROMStringRefPointer.cast(info).utf8Data());
+	    
+	}else {
+	    /* this is a float/int constant */
+	    System.out.println("Constant pool int: "+ romSingleSlotConstantRef.data().longValue());
+		return romSingleSlotConstantRef.data().longValue();	    
+	}
     }
     
     public String readUTF8(final long address, final char[] buf){
