@@ -47,6 +47,9 @@ import com.ibm.j9ddr.vm29.pointer.generated.J9ROMSingleSlotConstantRefPointer;
 import com.ibm.j9ddr.vm29.pointer.generated.J9ROMStringRefPointer;
 import com.ibm.j9ddr.vm29.pointer.generated.J9ROMFieldRefPointer;
 import com.ibm.j9ddr.vm29.pointer.generated.J9ROMMethodRefPointer;
+import com.ibm.j9ddr.vm29.pointer.generated.J9ROMClassRefPointer;
+
+import com.ibm.j9ddr.vm29.types.UDATA;
 
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.ClassReader;
@@ -60,6 +63,7 @@ import com.ibm.j9ddr.tools.ddrinteractive.CacheMemory;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
+import java.nio.ByteOrder;
 
 //this organization is not great, later we can refactor
 //its too entangled with soot atm
@@ -411,26 +415,48 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 		mv.visitIntInsn(opcode, src.getShort(ptr + 1));
 		ptr += 3;
 	    }
+	    //not sure if its most readable to handle all separate or do a immediate double check on op val
 	    else if(opcode == BCNames.JBldc){
-		int index = src.getByte(ptr + 1)& 0xFF;
+		
 		mv.visitLdcInsn(readConst(src.getByte(ptr + 1) & 0xFF, constantPool));
 		ptr += 2;
 	    }
-	    else if((opcode == BCNames.JBldcw) ||
-		    (opcode == BCNames.JBldc2lw) ||
-		    (opcode == BCNames.JBldc2dw)){
-		int index = src.getUnsignedShort(ptr + 1);
-		mv.visitLdcInsn(readConst(src.getUnsignedShort(ptr + 1), constantPool));
-		ptr += 3;
+	    else if (opcode == BCNames.JBldcw){
+		mv.visitLdcInsn(readConst(src.getShort(ptr + 1), constantPool));
+                ptr += 3;
+	    }
+	    else if(opcode == BCNames.JBldc2lw){
+
+		int index = src.getShort(ptr + 1);
+		J9ROMConstantPoolItemPointer info = constantPool.add(index);
+
+		//since we are working with infoslots the order check is a bit ugly against the mem model, but must do
+		long constantvalue = (src.getByteOrder() == ByteOrder.BIG_ENDIAN) ? ((info.slot1().longValue()) << 32) | (info.slot2().longValue() & 0xffffffffL) : ((info.slot2().longValue()) << 32) | (info.slot1().longValue() & 0xffffffffL);
+
+		System.out.println("slto1 then 2: "+ info.slot1().longValue()+ " " +info.slot2().longValue());
+		System.out.println("ldc2lw value is: "+ constantvalue);
+		mv.visitLdcInsn(constantvalue);
+                ptr += 3;
+            }
+	    else if(opcode == BCNames.JBldc2dw){
+
+		int index = src.getShort(ptr + 1);
+		J9ROMConstantPoolItemPointer info = constantPool.add(index);
+
+                //since we are working with infoslots the order check is a bit ugly against the mem model, but must do
+		long constantvalue = (src.getByteOrder() == ByteOrder.BIG_ENDIAN) ? ((info.slot1().longValue()) << 32) | (info.slot2().longValue() & 0xffffffffL) : ((info.slot2().longValue()) << 32) | (info.slot1().longValue() & 0xffffffffL);
+                System.out.println("ldc2dw value is: "+  Double.longBitsToDouble(constantvalue));
+		mv.visitLdcInsn(Double.longBitsToDouble(constantvalue));
+                ptr += 3;
 	    }
 	    else if((opcode == BCNames.JBgetstatic) ||
 		    (opcode == BCNames.JBputstatic) ||
 		    (opcode == BCNames.JBgetfield) ||
 		    (opcode == BCNames.JBputfield)){ 
 
-		int index = src.getUnsignedShort(ptr+1);
-		
+		int index = src.getUnsignedShort(ptr+1);		
 		J9ROMConstantPoolItemPointer info = constantPool.add(index);
+
 		J9ROMFieldRefPointer romFieldRef = J9ROMFieldRefPointer.cast(info);
 		String owner = J9UTF8Helper.stringValue(J9ROMClassRefPointer.cast(constantPool.add(romFieldRef.classRefCPIndex())).name());
 
@@ -438,14 +464,19 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 		String name = J9UTF8Helper.stringValue(nameAndSig.name());
 		String desc = J9UTF8Helper.stringValue(nameAndSig.signature());
 		mv.visitFieldInsn(opcode, owner, name, desc);
+
+		ptr += 3;
 		
+		//this has a strong duplication with the prev case except pointer types
+		//TODO maybe, clean, maybe
 	    }else if((opcode == BCNames.JBinvokevirtual) ||
                     (opcode == BCNames.JBinvokespecial) ||
                     (opcode == BCNames.JBinvokestatic) ||
                     (opcode == BCNames.JBinvokeinterface)){
 
 		int index = src.getUnsignedShort(ptr+1);
-
+		J9ROMConstantPoolItemPointer info = constantPool.add(index);
+		
 		J9ROMMethodRefPointer romMethodRef = J9ROMMethodRefPointer.cast(info);
 		UDATA classRefCPIndex = romMethodRef.classRefCPIndex();
 		J9ROMConstantPoolItemPointer cpItem = constantPool.add(classRefCPIndex);
@@ -486,7 +517,7 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 	    */ptr += 5;
 	    }	
 	    else if(opcode == BCNames.JBnewdup){
-		mv.visitTypeInsn(Opcodes.NEW, readClass(ptr + 1, c));
+		//		mv.visitTypeInsn(Opcodes.NEW, readClass(ptr + 1, c));
                 ptr += 3;
 	    }
 	    else if((opcode == BCNames.JBnew) ||
@@ -529,17 +560,21 @@ public class ROMClassWrapper implements IBootstrapRunnable{
     
     public Object readConst(final int index, J9ROMConstantPoolItemPointer constantPool) throws CorruptDataException{
 
+	System.out.println("The index is: "+ index);
+	
 	J9ROMConstantPoolItemPointer info = constantPool.add(index);
 	J9ROMSingleSlotConstantRefPointer romSingleSlotConstantRef = J9ROMSingleSlotConstantRefPointer.cast(info);
 
 	if (!romSingleSlotConstantRef.cpType().eq(BCT_J9DescriptionCpTypeScalar)) {
 	    /* this is a string or class constant */
 	    //TODO check if this handles class internal name as well
+	    System.out.println("Constant pool str condition" + romSingleSlotConstantRef.cpType());
 	    System.out.println("Constant pool str" + J9UTF8Helper.stringValue(J9ROMStringRefPointer.cast(info).utf8Data()));
 	    return J9UTF8Helper.stringValue(J9ROMStringRefPointer.cast(info).utf8Data());
 	    
 	}else {
 	    /* this is a float/int constant */
+	    System.out.println("Constant pool int/float condition" + romSingleSlotConstantRef.cpType());
 	    System.out.println("Constant pool int: "+ romSingleSlotConstantRef.data().longValue());
 		return romSingleSlotConstantRef.data().longValue();	    
 	}
