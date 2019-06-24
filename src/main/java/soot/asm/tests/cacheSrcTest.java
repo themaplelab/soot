@@ -41,6 +41,8 @@ import soot.Main;
 /*                                                                                                          
  * This class handles generating the jimple and classfiles for each 
  * test specified in the tests.config file
+ *
+ * WHEN ADDING NEW TESTS TO SUITE: PUT THEM IN HERE TOO!
  */
 
 public class cacheSrcTest{
@@ -67,8 +69,14 @@ public class cacheSrcTest{
 
 	    switch(testsToRun[i]){
 
+	    case "LDCTest":
+		LDCTest.genExampleInput(visitor);
+                genExampleClassfile("LDCTest", visitor);
+                runSoot("LDCTest");
+		break;
 	    case "AllOpsTest":
 		ClassWriter specialvisitor = AllOpsTest.genExampleInput();
+		//this visitor is "special" bc it does not have the "handle self" flags set... not sure if nec
 		genExampleClassfile("AllOpsTest", specialvisitor);
 		runSoot("AllOpsTest");
 		break;
@@ -233,8 +241,10 @@ public class cacheSrcTest{
 		runSoot("TryCatchTest");
 		break;
 	    default:
-                System.out.println("Test in config file does not exist: "+ testsToRun[i]);
-                break;
+		System.out.println("---------------------------------------------");
+		System.out.println("Test in config file does not exist: "+ testsToRun[i]);
+		System.out.println("---------------------------------------------");
+		break;
 
 	    }
 	}
