@@ -172,6 +172,7 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 	    int opcode = (int)(src.getByte(ptr) & 0xFF);
 
 	    System.out.println("The opcode value is: "+ opcode);
+	    System.out.println("The opcode offset is: "+offset);
 	    
 	    if((opcode == BCNames.JBnop) ||
 	       (opcode == BCNames.JBinvokeinterface2)){
@@ -213,7 +214,10 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 	    else if((opcode == BCNames.JBreturn0) ||
 		    (opcode == BCNames.JBreturn1) ||
 		    (opcode == BCNames.JBreturn2)){
-		mv.visitInsn(opcode);
+		//these correspond to ireturn, lreturn and freturn respectively
+		//seemingly we should put them into visitInsn with their actual opcode, HOWEVER
+		// opcode ireturn has been found at end of ConstraintErrorExample main? not clear why. so, clobber.
+		mv.visitInsn(Opcodes.RETURN);
 		ptr += 1;
 	    }
 	    else if((opcode == BCNames.JBinvokehandle) ||
