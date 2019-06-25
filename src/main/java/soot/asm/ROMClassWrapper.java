@@ -197,16 +197,23 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 		mv.visitMultiANewArrayInsn(arrName, dim);  
                 ptr += 4;
 	    }
+	    //actually maybe don't expect to see the returnFromConstructor:
+	    //https://github.com/eclipse/openj9/blob/v0.14.0-release/runtime/compiler/ilgen/J9ByteCode.hpp
 	    else if((opcode == BCNames.JBreturnFromConstructor) ||
-		    (opcode == BCNames.JBgenericReturn) ||
-		    (opcode == BCNames.JBreturnC) ||
-		    (opcode == BCNames.JBreturnS) ||
-		    (opcode == BCNames.JBreturnB) ||
-		    (opcode == BCNames.JBreturnZ) ||
-		    (opcode == BCNames.JBreturn0) ||
+		    (opcode == BCNames.JBgenericReturn)){
+		mv.visitInsn(Opcodes.RETURN);
+		ptr += 1;
+	    }else if((opcode == BCNames.JBreturnC) ||
+                    (opcode == BCNames.JBreturnS) ||
+                    (opcode == BCNames.JBreturnB) ||
+                    (opcode == BCNames.JBreturnZ)){
+		mv.visitInsn(Opcodes.IRETURN);
+		ptr += 1;
+	    }
+	    else if((opcode == BCNames.JBreturn0) ||
 		    (opcode == BCNames.JBreturn1) ||
 		    (opcode == BCNames.JBreturn2)){
-		mv.visitInsn(Opcodes.RETURN);
+		mv.visitInsn(opcode);
 		ptr += 1;
 	    }
 	    else if((opcode == BCNames.JBinvokehandle) ||
