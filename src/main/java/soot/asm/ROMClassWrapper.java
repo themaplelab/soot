@@ -510,12 +510,15 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 		mv.visitInvokeDynamicInsn(iname, idesc, bsm, bsmArgs);
 	    */ptr += 5;
 	    }	
-	    else if(opcode == BCNames.JBnewdup){
-		//		mv.visitTypeInsn(Opcodes.NEW, readClass(ptr + 1, c));
+	    else if((opcode == BCNames.JBnewdup) ||
+                    (opcode == BCNames.JBnew)){
+		int index = src.getShort(ptr+1);
+		J9ROMConstantPoolItemPointer info = constantPool.add(index);
+		String classname = J9UTF8Helper.stringValue(J9ROMStringRefPointer.cast(info).utf8Data());
+		mv.visitTypeInsn(Opcodes.NEW, classname);
                 ptr += 3;
 	    }
-	    else if((opcode == BCNames.JBnew) ||
-		    (opcode == BCNames.JBanewarray) ||
+	    else if((opcode == BCNames.JBanewarray) ||
 		    (opcode == BCNames.JBcheckcast) ||
 		    (opcode == BCNames.JBinstanceof)){
 		mv.visitTypeInsn(opcode, readClass(ptr + 1, c));
