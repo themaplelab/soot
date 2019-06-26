@@ -31,9 +31,9 @@ rm srctest.out
  echo "Generating classfiles and class->jimple step success!"
  echo "########################################################"
  
-#use the config file for which tests were executed, to diff                                                         
-while IFS= read -r simpleTestname; do
-
+#use the config file for which tests were executed, to diff
+while IFS= read -r simpleTestname || [ -n "$simpleTestname" ]; do
+    
 rm report.txt
     
 testname=${simpleTestname}Generated
