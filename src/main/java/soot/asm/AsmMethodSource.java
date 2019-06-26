@@ -1,27 +1,5 @@
 package soot.asm;
 
-/*-
- * #%L
- * Soot - a J*va Optimization Framework
- * %%
- * Copyright (C) 1997 - 2014 Raja Vallee-Rai and others
- * %%
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Lesser General Public License as
- * published by the Free Software Foundation, either version 2.1 of the
- * License, or (at your option) any later version.
- * 
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Lesser Public License for more details.
- * 
- * You should have received a copy of the GNU General Lesser Public
- * License along with this program.  If not, see
- * <http://www.gnu.org/licenses/lgpl-2.1.html>.
- * #L%
- */
-
 import static org.objectweb.asm.Opcodes.ACONST_NULL;
 import static org.objectweb.asm.Opcodes.ALOAD;
 import static org.objectweb.asm.Opcodes.ANEWARRAY;
@@ -151,6 +129,27 @@ import static org.objectweb.asm.Opcodes.SASTORE;
 import static org.objectweb.asm.Opcodes.SIPUSH;
 import static org.objectweb.asm.Opcodes.SWAP;
 import static org.objectweb.asm.Opcodes.T_BOOLEAN;
+/*-
+ * #%L
+ * Soot - a J*va Optimization Framework
+ * %%
+ * Copyright (C) 1997 - 2014 Raja Vallee-Rai and others
+ * %%
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as
+ * published by the Free Software Foundation, either version 2.1 of the
+ * License, or (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Lesser Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Lesser Public
+ * License along with this program.  If not, see
+ * <http://www.gnu.org/licenses/lgpl-2.1.html>.
+ * #L%
+ */
 import static org.objectweb.asm.Opcodes.T_BYTE;
 import static org.objectweb.asm.Opcodes.T_CHAR;
 import static org.objectweb.asm.Opcodes.T_DOUBLE;
@@ -194,7 +193,6 @@ import java.util.Map;
 import java.util.Set;
 
 import org.objectweb.asm.Handle;
-import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.FieldInsnNode;
 import org.objectweb.asm.tree.IincInsnNode;
@@ -223,10 +221,12 @@ import soot.CharType;
 import soot.DoubleType;
 import soot.FloatType;
 import soot.IntType;
+import soot.LambdaMetaFactory;
 import soot.Local;
 import soot.LongType;
 import soot.MethodSource;
 import soot.PackManager;
+import soot.PhaseOptions;
 import soot.RefType;
 import soot.Scene;
 import soot.ShortType;
@@ -254,7 +254,6 @@ import soot.jimple.ConditionExpr;
 import soot.jimple.Constant;
 import soot.jimple.DefinitionStmt;
 import soot.jimple.DoubleConstant;
-import soot.jimple.DynamicInvokeExpr;
 import soot.jimple.FieldRef;
 import soot.jimple.FloatConstant;
 import soot.jimple.GotoStmt;
@@ -293,7 +292,20 @@ import soot.util.Chain;
 final class AsmMethodSource implements MethodSource {
 
   private static final Operand DWORD_DUMMY = new Operand(null, null);
-
+  private static final String METAFACTORY_SIGNATURE = "<java.lang.invoke.LambdaMetafactory: java.lang.invoke.CallSite "
+      + "metafactory(java.lang.invoke.MethodHandles$Lookup,java.lang.String,java.lang.invoke.MethodType," + ""
+      + "java.lang.invoke.MethodType,java.lang.invoke.MethodHandle,java.lang.invoke.MethodType)>";
+  private static final String ALT_METAFACTORY_SIGNATURE = "<java.lang.invoke.LambdaMetafactory: java.lang.invoke.CallSite "
+      + "altMetafactory(java.lang.invoke.MethodHandles$Lookup,"
+      + "java.lang.String,java.lang.invoke.MethodType,java.lang.Object[])>";
+  /* -const fields- */
+  private final int maxLocals;
+  private final InsnList instructions;
+  private final List<LocalVariableNode> localVars;
+  private final List<TryCatchBlockNode> tryCatchBlocks;
+  private final Set<LabelNode> inlineExceptionLabels = new HashSet<LabelNode>();
+  private final Map<LabelNode, Unit> inlineExceptionHandlers = new HashMap<LabelNode, Unit>();
+  private final CastAndReturnInliner castAndReturnInliner = new CastAndReturnInliner();
   /* -state fields- */
   private int nextLocal;
   private Map<Integer, Local> locals;
@@ -304,16 +316,8 @@ final class AsmMethodSource implements MethodSource {
   private Multimap<LabelNode, UnitBox> trapHandlers;
   private JimpleBody body;
   private int lastLineNumber = -1;
-  /* -const fields- */
-  private final int maxLocals;
-  private final InsnList instructions;
-  private final List<LocalVariableNode> localVars;
-  private final List<TryCatchBlockNode> tryCatchBlocks;
-
-  private final Set<LabelNode> inlineExceptionLabels = new HashSet<LabelNode>();
-  private final Map<LabelNode, Unit> inlineExceptionHandlers = new HashMap<LabelNode, Unit>();
-
-  private final CastAndReturnInliner castAndReturnInliner = new CastAndReturnInliner();
+  private Table<AbstractInsnNode, AbstractInsnNode, Edge> edges;
+  private ArrayDeque<Edge> conversionWorklist;
 
   AsmMethodSource(int maxLocals, InsnList insns, List<LocalVariableNode> localVars, List<TryCatchBlockNode> tryCatchBlocks) {
     this.maxLocals = maxLocals;
@@ -680,6 +684,18 @@ final class AsmMethodSource implements MethodSource {
     }
   }
 
+  /*
+   * Following version is more complex, using stack frames as opposed to simply swapping
+   */
+  /*
+   * StackFrame frame = getFrame(insn); Operand[] out = frame.out(); Operand dup, dup2 = null, dupd, dupd2 = null; if (out ==
+   * null) { dupd = popImmediate(); dup = new Operand(insn, dupd.stackOrValue()); if (dword) { dupd2 = peek(); if (dupd2 ==
+   * DWORD_DUMMY) { pop(); dupd2 = dupd; } else { dupd2 = popImmediate(); } dup2 = new Operand(insn, dupd2.stackOrValue());
+   * frame.out(dup, dup2); frame.in(dupd, dupd2); } else { frame.out(dup); frame.in(dupd); } } else { dupd = pop(); dup =
+   * out[0]; if (dword) { dupd2 = pop(); if (dupd2 == DWORD_DUMMY) dupd2 = dupd; dup2 = out[1]; frame.mergeIn(dupd, dupd2); }
+   * else { frame.mergeIn(dupd); } }
+   */
+
   private void convertArrayLoadInsn(InsnNode insn) {
     StackFrame frame = getFrame(insn);
     Operand[] out = frame.out();
@@ -726,18 +742,6 @@ final class AsmMethodSource implements MethodSource {
       frame.mergeIn(dword ? popDual() : pop(), pop(), pop());
     }
   }
-
-  /*
-   * Following version is more complex, using stack frames as opposed to simply swapping
-   */
-  /*
-   * StackFrame frame = getFrame(insn); Operand[] out = frame.out(); Operand dup, dup2 = null, dupd, dupd2 = null; if (out ==
-   * null) { dupd = popImmediate(); dup = new Operand(insn, dupd.stackOrValue()); if (dword) { dupd2 = peek(); if (dupd2 ==
-   * DWORD_DUMMY) { pop(); dupd2 = dupd; } else { dupd2 = popImmediate(); } dup2 = new Operand(insn, dupd2.stackOrValue());
-   * frame.out(dup, dup2); frame.in(dupd, dupd2); } else { frame.out(dup); frame.in(dupd); } } else { dupd = pop(); dup =
-   * out[0]; if (dword) { dupd2 = pop(); if (dupd2 == DWORD_DUMMY) dupd2 = dupd; dup2 = out[1]; frame.mergeIn(dupd, dupd2); }
-   * else { frame.mergeIn(dupd); } }
-   */
 
   private void convertDupInsn(InsnNode insn) {
     int op = insn.getOpcode();
@@ -1335,7 +1339,7 @@ final class AsmMethodSource implements MethodSource {
     } else {
       opr = out[0];
       InvokeExpr expr = (InvokeExpr) opr.value;
-      List<Type> types = expr.getMethodRef().parameterTypes();
+      List<Type> types = expr.getMethodRef().getParameterTypes();
       Operand[] oprs;
       int nrArgs = types.size();
       if (expr.getMethodRef().isStatic()) {
@@ -1353,7 +1357,7 @@ final class AsmMethodSource implements MethodSource {
         frame.mergeIn(oprs);
         nrArgs = types.size();
       }
-      returnType = expr.getMethodRef().returnType();
+      returnType = expr.getMethodRef().getReturnType();
     }
     if (AsmUtil.isDWord(returnType)) {
       pushDual(opr);
@@ -1406,12 +1410,29 @@ final class AsmMethodSource implements MethodSource {
       }
       returnType = types[types.length - 1];
 
-      // we always model invokeDynamic method refs as static method references
-      // of methods on the type SootClass.INVOKEDYNAMIC_DUMMY_CLASS_NAME
-      SootMethodRef methodRef = Scene.v().makeMethodRef(bclass, insn.name, parameterTypes, returnType, true);
+      SootMethodRef bootstrap_model = null;
 
-      DynamicInvokeExpr indy
-          = Jimple.v().newDynamicInvokeExpr(bsmMethodRef, bsmMethodArgs, methodRef, insn.bsm.getTag(), methodArgs);
+      if (PhaseOptions.getBoolean(PhaseOptions.v().getPhaseOptions("jb"), "model-lambdametafactory")) {
+        String bsmMethodRefStr = bsmMethodRef.toString();
+        if (bsmMethodRefStr.equals(METAFACTORY_SIGNATURE) || bsmMethodRefStr.equals(ALT_METAFACTORY_SIGNATURE)) {
+          SootClass enclosingClass = body.getMethod().getDeclaringClass();
+          bootstrap_model
+              = LambdaMetaFactory.v().makeLambdaHelper(bsmMethodArgs, insn.bsm.getTag(), insn.name, types, enclosingClass);
+        }
+      }
+
+      InvokeExpr indy;
+
+      if (bootstrap_model != null) {
+        indy = Jimple.v().newStaticInvokeExpr(bootstrap_model, methodArgs);
+      } else {
+        // if not mimicking the LambdaMetaFactory, we model invokeDynamic method refs as static method references
+        // of methods on the type SootClass.INVOKEDYNAMIC_DUMMY_CLASS_NAME
+        SootMethodRef methodRef = Scene.v().makeMethodRef(bclass, insn.name, parameterTypes, returnType, true);
+
+        indy = Jimple.v().newDynamicInvokeExpr(bsmMethodRef, bsmMethodArgs, methodRef, insn.bsm.getTag(), methodArgs);
+      }
+
       if (boxes != null) {
         for (int i = 0; i < types.length - 1; i++) {
           boxes[i] = indy.getArgBox(i);
@@ -1426,7 +1447,7 @@ final class AsmMethodSource implements MethodSource {
     } else {
       opr = out[0];
       InvokeExpr expr = (InvokeExpr) opr.value;
-      List<Type> types = expr.getMethodRef().parameterTypes();
+      List<Type> types = expr.getMethodRef().getParameterTypes();
       Operand[] oprs;
       int nrArgs = types.size();
       if (expr.getMethodRef().isStatic()) {
@@ -1444,7 +1465,7 @@ final class AsmMethodSource implements MethodSource {
         frame.mergeIn(oprs);
         nrArgs = types.size();
       }
-      returnType = expr.getMethodRef().returnType();
+      returnType = expr.getMethodRef().getReturnType();
     }
     if (AsmUtil.isDWord(returnType)) {
       pushDual(opr);
@@ -1464,18 +1485,18 @@ final class AsmMethodSource implements MethodSource {
     SootClass bsmCls = Scene.v().getSootClass(bsmClsName);
     List<Type> bsmSigTypes = AsmUtil.toJimpleDesc(methodHandle.getDesc());
     Type returnType = bsmSigTypes.remove(bsmSigTypes.size() - 1);
-    return Scene.v().makeMethodRef(bsmCls, methodHandle.getName(), bsmSigTypes, returnType, 
+    return Scene.v().makeMethodRef(bsmCls, methodHandle.getName(), bsmSigTypes, returnType,
         methodHandle.getTag() == MethodHandle.Kind.REF_INVOKE_STATIC.getValue());
   }
-  
+
   private SootFieldRef toSootFieldRef(Handle methodHandle) {
     String bsmClsName = AsmUtil.toQualifiedName(methodHandle.getOwner());
     SootClass bsmCls = Scene.v().getSootClass(bsmClsName);
     Type t = AsmUtil.toJimpleDesc(methodHandle.getDesc()).get(0);
     int kind = methodHandle.getTag();
-    return Scene.v().makeFieldRef(bsmCls, methodHandle.getName(), t, 
-        kind == MethodHandle.Kind.REF_GET_FIELD_STATIC.getValue() 
-        || kind == MethodHandle.Kind.REF_PUT_FIELD_STATIC.getValue());
+    return Scene.v().makeFieldRef(bsmCls, methodHandle.getName(), t,
+        kind == MethodHandle.Kind.REF_GET_FIELD_STATIC.getValue()
+            || kind == MethodHandle.Kind.REF_PUT_FIELD_STATIC.getValue());
   }
 
   private void convertMultiANewArrayInsn(MultiANewArrayInsnNode insn) {
@@ -1633,6 +1654,8 @@ final class AsmMethodSource implements MethodSource {
     }
   }
 
+  /* Conversion */
+
   private void convertLabel(LabelNode ln) {
     if (!trapHandlers.containsKey(ln)) {
       return;
@@ -1669,30 +1692,6 @@ final class AsmMethodSource implements MethodSource {
   private void convertLine(LineNumberNode ln) {
     lastLineNumber = ln.line;
   }
-
-  /* Conversion */
-
-  private final class Edge {
-    /* edge endpoint */
-    final AbstractInsnNode insn;
-    /* previous stacks at edge */
-    final LinkedList<Operand[]> prevStacks;
-    /* current stack at edge */
-    ArrayList<Operand> stack;
-
-    Edge(AbstractInsnNode insn, ArrayList<Operand> stack) {
-      this.insn = insn;
-      this.prevStacks = new LinkedList<Operand[]>();
-      this.stack = stack;
-    }
-
-    Edge(AbstractInsnNode insn) {
-      this(insn, new ArrayList<Operand>(AsmMethodSource.this.stack));
-    }
-  }
-
-  private Table<AbstractInsnNode, AbstractInsnNode, Edge> edges;
-  private ArrayDeque<Edge> conversionWorklist;
 
   private void addEdges(AbstractInsnNode cur, AbstractInsnNode tgt1, List<LabelNode> tgts) {
     int lastIdx = tgts == null ? -1 : tgts.size() - 1;
@@ -2070,5 +2069,24 @@ final class AsmMethodSource implements MethodSource {
     }
 
     return jb;
+  }
+
+  private final class Edge {
+    /* edge endpoint */
+    final AbstractInsnNode insn;
+    /* previous stacks at edge */
+    final LinkedList<Operand[]> prevStacks;
+    /* current stack at edge */
+    ArrayList<Operand> stack;
+
+    Edge(AbstractInsnNode insn, ArrayList<Operand> stack) {
+      this.insn = insn;
+      this.prevStacks = new LinkedList<Operand[]>();
+      this.stack = stack;
+    }
+
+    Edge(AbstractInsnNode insn) {
+      this(insn, new ArrayList<Operand>(AsmMethodSource.this.stack));
+    }
   }
 }
