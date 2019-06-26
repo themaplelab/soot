@@ -516,18 +516,19 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 	    */ptr += 5;
 	    }	
 	    else if((opcode == BCNames.JBnewdup) ||
-                    (opcode == BCNames.JBnew)){
+                    (opcode == BCNames.JBnew)||
+                    (opcode == BCNames.JBanewarray) ||
+                    (opcode == BCNames.JBcheckcast) ||
+                    (opcode == BCNames.JBinstanceof)){
+		//newdup is the only openj9 specific
+		if(opcode == BCNames.JBnewdup){
+		    opcode = Opcodes.NEW;
+		}
 		int index = src.getShort(ptr+1);
 		J9ROMConstantPoolItemPointer info = constantPool.add(index);
 		String classname = J9UTF8Helper.stringValue(J9ROMStringRefPointer.cast(info).utf8Data());
-		mv.visitTypeInsn(Opcodes.NEW, classname);
+		mv.visitTypeInsn(opcode, classname);
                 ptr += 3;
-	    }
-	    else if((opcode == BCNames.JBanewarray) ||
-		    (opcode == BCNames.JBcheckcast) ||
-		    (opcode == BCNames.JBinstanceof)){
-		mv.visitTypeInsn(opcode, readClass(ptr + 1, c));
-		ptr += 3;
 	    }
 	    else if(opcode == BCNames.JBiinc){
 		mv.visitIincInsn(src.getByte(ptr + 1) & 0xFF, src.getByte(ptr + 2));
@@ -582,11 +583,5 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 	}
     }
     
-    public String readUTF8(final long address, final char[] buf){
-        return "";
-    }
     
-    public String readClass(final long address, final char[] buf){
-	return "";
-    }
 }
