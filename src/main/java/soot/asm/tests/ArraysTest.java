@@ -39,7 +39,7 @@ public class ArraysTest  extends AbstractCacheSrcTest{
 		MethodVisitor mv;
 
 
-		cw.visit(V1_1, ACC_PUBLIC + ACC_SUPER, "ArraysGenerated", null,
+		cw.visit(V1_1, ACC_PUBLIC + ACC_SUPER, "ArraysTestGenerated", null,
 				"java/lang/Object", null);
 		cw.visitSource("Arrays.java", null);
 
