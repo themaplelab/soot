@@ -198,10 +198,12 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 		mv.visitMultiANewArrayInsn(arrName, dim);  
                 ptr += 4;
 	    }
+	    //TODO fix retfromConstructor
 	    //actually maybe don't expect to see the returnFromConstructor:
 	    //https://github.com/eclipse/openj9/blob/v0.14.0-release/runtime/compiler/ilgen/J9ByteCode.hpp
 	    else if((opcode == BCNames.JBreturnFromConstructor) ||
-		    (opcode == BCNames.JBgenericReturn)){
+		    (opcode == BCNames.JBgenericReturn) ||
+                    (opcode == BCNames.JBreturn0)){
 		mv.visitInsn(Opcodes.RETURN);
 		ptr += 1;
 	    }else if((opcode == BCNames.JBreturnC) ||
@@ -211,12 +213,11 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 		mv.visitInsn(Opcodes.IRETURN);
 		ptr += 1;
 	    }
-	    else if((opcode == BCNames.JBreturn0) ||
-		    (opcode == BCNames.JBreturn1) ||
+	    else if((opcode == BCNames.JBreturn1) ||
 		    (opcode == BCNames.JBreturn2)){
-		//these correspond to ireturn, lreturn and freturn respectively
-		//seemingly we should put them into visitInsn with their actual opcode, HOWEVER
-		// opcode ireturn has been found at end of ConstraintErrorExample main? not clear why. so, clobber.
+		//return0,1,2 correspond to return(pop 0 slots), return(pop 1 slot) and return(pop 2 slots)
+		//we can almost deal with the last two as ireturn lreturn , but this may have a type problem
+		//TODO fix this...
 		mv.visitInsn(Opcodes.RETURN);
 		ptr += 1;
 	    }
