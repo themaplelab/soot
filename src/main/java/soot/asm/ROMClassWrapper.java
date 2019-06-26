@@ -162,8 +162,6 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 	CacheMemorySource src = this.cacheMem.getMemorySource();
 	long ptr = bytecodeSt;
 	
-	//TODO parse the actual max string length for a str in the const pool
-	char[] c = new char[1000];
 	//for our targets, as we find them
 	//Label[] labels = new Label[(bytecodeEnd-bytecodeSt)];
 	
@@ -182,8 +180,14 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 		    (opcode == BCNames.JBwithfield)){
 		ptr += 2;
 	    }
+	    else if(opcode == BCNames.JBiinc){
+                int LVAindex = src.getByte(ptr+1);
+                mv.visitIincInsn(LVAindex, (int)src.getByte(LVAindex));
+                ptr += 2;
+            }
 	    else if(opcode == BCNames.JBiincw){
-		//TODO handle
+		int LVAindex = src.getShort(ptr+1);
+		mv.visitIincInsn(LVAindex, (int)src.getShort(LVAindex));
 		ptr += 5;
 	    }
 	    else if(opcode == BCNames.JBmultianewarray){
