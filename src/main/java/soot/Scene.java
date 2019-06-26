@@ -46,6 +46,7 @@ import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
+import javax.annotation.Nullable;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.filefilter.MagicNumberFileFilter;
 import org.slf4j.Logger;
@@ -83,6 +84,7 @@ public class Scene // extends AbstractHost
 
   private final int defaultSdkVersion = 15;
   private final Map<String, Integer> maxAPIs = new HashMap<String, Integer>();
+  private AndroidVersionInfo androidSDKVersionInfo;
 
   public Scene(Singletons.Global g) {
     setReservedNames();
@@ -427,7 +429,7 @@ public class Scene // extends AbstractHost
     return androidAPIVersion;
   }
 
-  private static class AndroidVersionInfo {
+  public static class AndroidVersionInfo {
 
     public int sdkTargetVersion = -1;
     public int minSdkVersion = -1;
@@ -462,67 +464,29 @@ public class Scene // extends AbstractHost
 
       // process AndroidManifest.xml
       int maxAPI = getMaxAPIAvailable(platformJARs);
-      final AndroidVersionInfo versionInfo = new AndroidVersionInfo();
-      try {
-        AxmlReader xmlReader = new AxmlReader(IOUtils.toByteArray(manifestIS));
-        xmlReader.accept(new AxmlVisitor() {
-
-          private String nodeName = null;
-
-          @Override
-          public void attr(String ns, String name, int resourceId, int type, Object obj) {
-            super.attr(ns, name, resourceId, type, obj);
-
-            if (nodeName != null && name != null) {
-              if (nodeName.equals("manifest")) {
-                if (name.equals("platformBuildVersionCode")) {
-                  versionInfo.platformBuildVersionCode = Integer.valueOf("" + obj);
-                }
-              } else if (nodeName.equals("uses-sdk")) {
-                // Obfuscated APKs often remove the attribute names and use the resourceId instead
-                // Therefore it is better to check for both variants
-                if (name.equals("targetSdkVersion") || (name.equals("") && resourceId == 16843376)) {
-                  versionInfo.sdkTargetVersion = Integer.valueOf("" + obj);
-                } else if (name.equals("minSdkVersion") || (name.equals("") && resourceId == 16843276)) {
-                  versionInfo.minSdkVersion = Integer.valueOf("" + obj);
-                }
-              }
-            }
-          }
-
-          @Override
-          public NodeVisitor child(String ns, String name) {
-            nodeName = name;
-
-            return this;
-          }
-
-        });
-      } catch (Exception e) {
-        logger.error(e.getMessage(), e);
-      }
+      androidSDKVersionInfo = getAndroidVersionInfo(manifestIS);
 
       int APIVersion = -1;
-      if (versionInfo.sdkTargetVersion != -1) {
-        if (versionInfo.sdkTargetVersion > maxAPI && versionInfo.minSdkVersion != -1
-            && versionInfo.minSdkVersion <= maxAPI) {
-          logger.warn("Android API version '" + versionInfo.sdkTargetVersion + "' not available, using minApkVersion '"
-              + versionInfo.minSdkVersion + "' instead");
-          APIVersion = versionInfo.minSdkVersion;
+      if (androidSDKVersionInfo.sdkTargetVersion != -1) {
+        if (androidSDKVersionInfo.sdkTargetVersion > maxAPI && androidSDKVersionInfo.minSdkVersion != -1
+            && androidSDKVersionInfo.minSdkVersion <= maxAPI) {
+          logger.warn("Android API version '" + androidSDKVersionInfo.sdkTargetVersion
+              + "' not available, using minApkVersion '" + androidSDKVersionInfo.minSdkVersion + "' instead");
+          APIVersion = androidSDKVersionInfo.minSdkVersion;
         } else {
-          APIVersion = versionInfo.sdkTargetVersion;
+          APIVersion = androidSDKVersionInfo.sdkTargetVersion;
         }
-      } else if (versionInfo.platformBuildVersionCode != -1) {
-        if (versionInfo.platformBuildVersionCode > maxAPI && versionInfo.minSdkVersion != -1
-            && versionInfo.minSdkVersion <= maxAPI) {
-          logger.warn("Android API version '" + versionInfo.platformBuildVersionCode
-              + "' not available, using minApkVersion '" + versionInfo.minSdkVersion + "' instead");
-          APIVersion = versionInfo.minSdkVersion;
+      } else if (androidSDKVersionInfo.platformBuildVersionCode != -1) {
+        if (androidSDKVersionInfo.platformBuildVersionCode > maxAPI && androidSDKVersionInfo.minSdkVersion != -1
+            && androidSDKVersionInfo.minSdkVersion <= maxAPI) {
+          logger.warn("Android API version '" + androidSDKVersionInfo.platformBuildVersionCode
+              + "' not available, using minApkVersion '" + androidSDKVersionInfo.minSdkVersion + "' instead");
+          APIVersion = androidSDKVersionInfo.minSdkVersion;
         } else {
-          APIVersion = versionInfo.platformBuildVersionCode;
+          APIVersion = androidSDKVersionInfo.platformBuildVersionCode;
         }
-      } else if (versionInfo.minSdkVersion != -1) {
-        APIVersion = versionInfo.minSdkVersion;
+      } else if (androidSDKVersionInfo.minSdkVersion != -1) {
+        APIVersion = androidSDKVersionInfo.minSdkVersion;
       } else {
         logger.debug("Could not find sdk version in Android manifest! Using default: " + defaultSdkVersion);
         APIVersion = defaultSdkVersion;
@@ -541,6 +505,54 @@ public class Scene // extends AbstractHost
         }
       }
     }
+  }
+
+  @Nullable
+  public AndroidVersionInfo getAndroidSDKVersionInfo() {
+    return androidSDKVersionInfo;
+  }
+
+  private AndroidVersionInfo getAndroidVersionInfo(InputStream manifestIS) {
+    final AndroidVersionInfo versionInfo = new AndroidVersionInfo();
+    try {
+      AxmlReader xmlReader = new AxmlReader(IOUtils.toByteArray(manifestIS));
+      xmlReader.accept(new AxmlVisitor() {
+
+        private String nodeName = null;
+
+        @Override
+        public void attr(String ns, String name, int resourceId, int type, Object obj) {
+          super.attr(ns, name, resourceId, type, obj);
+
+          if (nodeName != null && name != null) {
+            if (nodeName.equals("manifest")) {
+              if (name.equals("platformBuildVersionCode")) {
+                versionInfo.platformBuildVersionCode = Integer.valueOf("" + obj);
+              }
+            } else if (nodeName.equals("uses-sdk")) {
+              // Obfuscated APKs often remove the attribute names and use the resourceId instead
+              // Therefore it is better to check for both variants
+              if (name.equals("targetSdkVersion") || (name.equals("") && resourceId == 16843376)) {
+                versionInfo.sdkTargetVersion = Integer.valueOf("" + obj);
+              } else if (name.equals("minSdkVersion") || (name.equals("") && resourceId == 16843276)) {
+                versionInfo.minSdkVersion = Integer.valueOf("" + obj);
+              }
+            }
+          }
+        }
+
+        @Override
+        public NodeVisitor child(String ns, String name) {
+          nodeName = name;
+
+          return this;
+        }
+
+      });
+    } catch (Exception e) {
+      logger.error(e.getMessage(), e);
+    }
+    return versionInfo;
   }
 
   public String defaultClassPath() {
@@ -637,14 +649,14 @@ public class Scene // extends AbstractHost
 
     return jarPath;
   }
-  
+
   public static boolean isApk(String file) {
     // decide if a file is an APK by its magic number and whether it contains dex file.
     boolean r = false;
     // first check magic number
     File apk = new File(file);
-    MagicNumberFileFilter apkFilter = new MagicNumberFileFilter(new byte[] {(byte) 0x50, (byte) 0x4B,
-                                                                            (byte) 0x03, (byte) 0x04});
+    MagicNumberFileFilter apkFilter
+        = new MagicNumberFileFilter(new byte[] { (byte) 0x50, (byte) 0x4B, (byte) 0x03, (byte) 0x04 });
     if (!apkFilter.accept(apk)) {
       return r;
     }
@@ -672,7 +684,7 @@ public class Scene // extends AbstractHost
         }
       }
     }
-    
+
     return r;
   }
 
@@ -1565,7 +1577,7 @@ public class Scene // extends AbstractHost
     rn.add("strictfp");
   }
 
-  private final Set<String>[] basicclasses = new Set[4];
+  protected final Set<String>[] basicclasses = new Set[4];
 
   private void addSootBasicClasses() {
     basicclasses[SootClass.HIERARCHY] = new HashSet<String>();
@@ -1642,15 +1654,25 @@ public class Scene // extends AbstractHost
 
   /**
    * Load just the set of basic classes soot needs, ignoring those specified on the command-line. You don't need to use both
-   * this and loadNecessaryClasses, though it will only waste time.
+   * this and {@link #loadNecessaryClasses()}, though it will only waste time.
    */
   public void loadBasicClasses() {
     addReflectionTraceClasses();
 
+    int loadedClasses = 0;
     for (int i = SootClass.BODIES; i >= SootClass.HIERARCHY; i--) {
       for (String name : basicclasses[i]) {
-        tryLoadClass(name, i);
+        SootClass basicClass = tryLoadClass(name, i);
+        if (basicClass != null && !basicClass.isPhantom()) {
+          loadedClasses++;
+        }
       }
+    }
+    if (loadedClasses == 0) {
+      // Missing basic classes means no Exceptions could be loaded and no Exception hierarchy can lead
+      // to non-deterministic Jimple code generation: catch blocks may be removed because of
+      // non-existing Exception hierarchy.
+      throw new RuntimeException("None of the basic classes could be loaded! Check your Soot class path!");
     }
   }
 
@@ -1665,7 +1687,7 @@ public class Scene // extends AbstractHost
     return all;
   }
 
-  private void addReflectionTraceClasses() {
+  protected void addReflectionTraceClasses() {
     CGOptions options = new CGOptions(PhaseOptions.v().getPhaseOptions("cg"));
     String log = options.reflection_log();
 
@@ -1869,6 +1891,9 @@ public class Scene // extends AbstractHost
   /** Create an unresolved reference to a method. */
   public SootMethodRef makeMethodRef(SootClass declaringClass, String name, List<Type> parameterTypes, Type returnType,
       boolean isStatic) {
+    if (PolymorphicMethodRef.handlesClass(declaringClass)) {
+      return new PolymorphicMethodRef(declaringClass, name, parameterTypes, returnType, isStatic);
+    }
     return new SootMethodRefImpl(declaringClass, name, parameterTypes, returnType, isStatic);
   }
 
