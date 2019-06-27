@@ -27,8 +27,11 @@ import com.ibm.j9ddr.vm29.pointer.generated.J9ROMStringRefPointer;
 import com.ibm.j9ddr.vm29.pointer.generated.J9ROMFieldRefPointer;
 import com.ibm.j9ddr.vm29.pointer.generated.J9ROMMethodRefPointer;
 import com.ibm.j9ddr.vm29.pointer.generated.J9ROMClassRefPointer;
+import com.ibm.j9ddr.vm29.pointer.generated.J9ROMMethodHandleRefPointer;
 
 import com.ibm.j9ddr.vm29.types.UDATA;
+import com.ibm.j9ddr.vm29.pointer.U16Pointer;
+import com.ibm.j9ddr.vm29.pointer.SelfRelativePointer;
 
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.ClassReader;
@@ -36,6 +39,7 @@ import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Label;
+import org.objectweb.asm.Handle;
 
 import com.ibm.j9ddr.tools.ddrinteractive.CacheMemorySource;
 import com.ibm.j9ddr.tools.ddrinteractive.CacheMemory;
@@ -69,6 +73,8 @@ public class ROMClassWrapper implements IBootstrapRunnable{
     private int BCT_J9DescriptionCpTypeScalar  = 0;
     private int BCT_J9DescriptionCpTypeObject = 1;
     private int BCT_J9DescriptionCpTypeClass  = 2;
+
+    private int J9DescriptionCpTypeShift = 4;
     /////////////////////////////////////
 
     
@@ -178,6 +184,7 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 	    }
 	    else if((opcode == BCNames.JBdefaultvalue) ||
 		    (opcode == BCNames.JBwithfield)){
+		//these only exist for #if defined(J9VM_OPT_VALHALLA_VALUE_TYPES)?
 		ptr += 2;
 	    }
 	    else if(opcode == BCNames.JBiinc){
@@ -313,12 +320,11 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 		//						  + src.getInt(ptr + 1)]);
 		ptr += 5;
 		}
-	    
-	    //196 == WIDE
-	    //BCNames does not have a wide opcode...
-	    //but both Walker https://github.com/eclipse/openj9/blob/v0.14.0-release/runtime/compiler/ilgen/Walker.cpp#L1494
-	    //and ilgen maybe expect it to exist https://github.com/eclipse/openj9/blob/v0.14.0-release/runtime/compiler/ilgen/J9ByteCode.hpp#L111
 	    else if(opcode == 196){
+	    //196 == WIDE                                                                                            
+            //BCNames does not have a wide opcode...                                                                     
+            //but both Walker https://github.com/eclipse/openj9/blob/v0.14.0-release/runtime/compiler/ilgen/Walker.cpp#L1494                                                                                                                      
+            //and ilgen maybe expect it to exist https://github.com/eclipse/openj9/blob/v0.14.0-release/runtime/compiler/ilgen/J9ByteCode.hpp#L111   
 		opcode = src.getInt(ptr + 1);
 		if (opcode == BCNames.JBiinc) {
 		    mv.visitIincInsn(src.getUnsignedShort(ptr + 2), src.getShort(ptr + 4));
@@ -506,23 +512,60 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 		    ptr += 3;
 		}
 	    }
-	
+
+	    //TODO finish aka get real rest of info for handle
 	    else if (opcode == BCNames.JBinvokedynamic) {
-	    /*		    int cpIndex = items[src.getUnsignedShort(ptr + 1)];
-		int bsmIndex = context.bootstrapMethods[src.getUnsignedShort(cpIndex)];
-		Handle bsm = (Handle) readConst(src.getUnsignedShort(bsmIndex), constantPool);
-		int bsmArgCount = src.getUnsignedShort(bsmIndex + 2);
-		Object[] bsmArgs = new Object[bsmArgCount];
-		bsmIndex += 4;
-		for (int i = 0; i < bsmArgCount; i++) {
-		    bsmArgs[i] = readConst(src.getUnsignedShort(bsmIndex), constantPool);
-		    bsmIndex += 2;
+	
+		int index = src.getShort(ptr + 1);
+
+		long callSiteCount = pointer.callSiteCount().longValue();
+		SelfRelativePointer callSiteData = SelfRelativePointer.cast(pointer.callSiteData());
+		U16Pointer bsmIndices = U16Pointer.cast(callSiteData.addOffset(4*callSiteCount));
+
+		//just a check for now about who the caller(s) are, not really needed for reader
+		//TODO rm
+		for(int i =0; i < callSiteCount; i++){
+		    J9ROMNameAndSignaturePointer callerNameAndSig = J9ROMNameAndSignaturePointer.cast(callSiteData.add(i).get());
+		    String callername = J9UTF8Helper.stringValue(callerNameAndSig.name());
+		    String callerdesc = J9UTF8Helper.stringValue(callerNameAndSig.signature());
+		    System.out.println("The caller name: " + callername +" and signature: " + callerdesc);
 		}
-		cpIndex = items[src.getUnsignedShort(cpIndex + 2)];
-		String iname = readUTF8(cpIndex, c);
-		String idesc = readUTF8(cpIndex + 2, c);
-		mv.visitInvokeDynamicInsn(iname, idesc, bsm, bsmArgs);
-	    */ptr += 5;
+
+		//gets a pointer to the exact entry in the callSiteData table to the bsm data of this invoked method
+		int bsmIndex = bsmIndices.at(index).intValue(); //Bootstrap method index
+		U16Pointer bsmDataCursor = bsmIndices.add(callSiteCount);
+		bsmDataCursor = bsmDataCursor.add(bsmIndex);
+		
+		J9ROMMethodHandleRefPointer methodHandleRef = J9ROMMethodHandleRefPointer.cast(constantPool.add(bsmDataCursor.at(0).longValue()));
+		J9ROMMethodRefPointer methodRef = J9ROMMethodRefPointer.cast(constantPool.add(methodHandleRef.methodOrFieldRefIndex().longValue()));
+
+		//callee
+		J9ROMNameAndSignaturePointer nameAndSig = methodRef.nameAndSignature();
+		String name = J9UTF8Helper.stringValue(nameAndSig.name());
+		String desc = J9UTF8Helper.stringValue(nameAndSig.signature());
+		
+		int bsmArgCount = bsmDataCursor.at(1).intValue();
+		bsmDataCursor = bsmDataCursor.add(2);
+
+		//map this info into the asm understanding of a handle
+	        int methodType = methodHandleRef.handleTypeAndCpType().rightShift((int)J9DescriptionCpTypeShift).intValue();
+		J9ROMClassRefPointer classRef = J9ROMClassRefPointer.cast(constantPool.add(methodRef.classRefCPIndex().longValue()));
+		String owner = J9UTF8Helper.stringValue(classRef.name());
+		//public Handle(int tag, String owner, String name, String desc, boolean itf)
+		Handle bsm = new Handle(methodType, owner, name, desc, false);
+		Object[] bsmArgs = new Object[bsmArgCount];
+
+		//populate the invoked method args array
+		for (int i = 0; i < bsmArgCount; i++) {
+		    long argCPIndex = bsmDataCursor.at(0).longValue();
+		    J9ROMConstantPoolItemPointer item = constantPool.add(argCPIndex);
+		    bsmArgs[i] = readConst(src.getUnsignedShort(bsmIndex), constantPool);
+		    bsmDataCursor = bsmDataCursor.add(1);
+		}
+
+		//how is providing name+desc not redundant with the bsm handle also haing those...
+		mv.visitInvokeDynamicInsn(name, desc, bsm, bsmArgs);
+		ptr += 5;
 	    }	
 	    else if((opcode == BCNames.JBnewdup) ||
                     (opcode == BCNames.JBnew)||
