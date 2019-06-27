@@ -313,16 +313,21 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 		//						  + src.getInt(ptr + 1)]);
 		ptr += 5;
 		}
-		/*	    opcode == WIDE_INSN) ||
+	    
+	    //196 == WIDE
+	    //BCNames does not have a wide opcode...
+	    //but both Walker https://github.com/eclipse/openj9/blob/v0.14.0-release/runtime/compiler/ilgen/Walker.cpp#L1494
+	    //and ilgen maybe expect it to exist https://github.com/eclipse/openj9/blob/v0.14.0-release/runtime/compiler/ilgen/J9ByteCode.hpp#L111
+	    else if(opcode == 196){
 		opcode = src.getInt(ptr + 1);
-		if (opcode == Opcodes.IINC) {
+		if (opcode == BCNames.JBiinc) {
 		    mv.visitIincInsn(src.getUnsignedShort(ptr + 2), src.getShort(ptr + 4));
 		    ptr += 6;
 		} else {
 		    mv.visitVarInsn(opcode, src.getUnsignedShort(ptr + 2));
 		    ptr += 4;
 		}
-		}*/
+	    }
 	    else if(opcode == BCNames.JBtableswitch)
 		{
 		// skips 0 to 3 padding bytes
