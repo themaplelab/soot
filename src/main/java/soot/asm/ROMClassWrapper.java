@@ -557,9 +557,10 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 
 		//populate the invoked method args array
 		for (int i = 0; i < bsmArgCount; i++) {
-		    long argCPIndex = bsmDataCursor.at(0).longValue();
-		    J9ROMConstantPoolItemPointer item = constantPool.add(argCPIndex);
-		    bsmArgs[i] = readConst(src.getUnsignedShort(bsmIndex), constantPool);
+		    int argCPIndex = bsmDataCursor.at(0).intValue();
+		    //TODO check if this is handled correctly, actually may need refactor of readConst, not
+		    //sure if all types are going to be handled correctly, and if we need the cpShapeDesc actually
+		    bsmArgs[i] = readConst(argCPIndex, constantPool);
 		    bsmDataCursor = bsmDataCursor.add(1);
 		}
 
