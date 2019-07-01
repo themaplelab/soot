@@ -28,9 +28,16 @@ import com.ibm.j9ddr.vm29.pointer.generated.J9ROMFieldRefPointer;
 import com.ibm.j9ddr.vm29.pointer.generated.J9ROMMethodRefPointer;
 import com.ibm.j9ddr.vm29.pointer.generated.J9ROMClassRefPointer;
 import com.ibm.j9ddr.vm29.pointer.generated.J9ROMMethodHandleRefPointer;
+import com.ibm.j9ddr.vm29.j9.J9ROMFieldShapeIterator;
+import com.ibm.j9ddr.vm29.pointer.generated.J9ROMFieldShapePointer;
+import com.ibm.j9ddr.vm29.pointer.generated.J9ROMStaticFieldShapePointer;
+import com.ibm.j9ddr.vm29.pointer.helper.J9ROMFieldShapeHelper;
+
 
 import com.ibm.j9ddr.vm29.types.UDATA;
+import com.ibm.j9ddr.vm29.pointer.I64Pointer;
 import com.ibm.j9ddr.vm29.pointer.U16Pointer;
+import com.ibm.j9ddr.vm29.pointer.U32Pointer;
 import com.ibm.j9ddr.vm29.pointer.SelfRelativePointer;
 
 import org.objectweb.asm.ClassWriter;
@@ -38,6 +45,7 @@ import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.MethodVisitor;
+import org.objectweb.asm.FieldVisitor;
 import org.objectweb.asm.Label;
 import org.objectweb.asm.Handle;
 
@@ -75,6 +83,23 @@ public class ROMClassWrapper implements IBootstrapRunnable{
     private int BCT_J9DescriptionCpTypeClass  = 2;
 
     private int J9DescriptionCpTypeShift = 4;
+
+    private int J9AccStatic = 8;
+
+    //J9FieldFlagConstant 0x400000
+    //J9FieldTypeDouble 0x180000
+    //J9FieldTypeLong 0x380000
+    //J9FieldTypeFloat 0x100000
+    //J9FieldFlagObject 0x20000
+
+    //likely less efficient than hardcoding the ints, but this is easier to read and check since the vals in nonbuilder
+    //are in hex
+    private int J9FieldTypeDouble = Integer.parseInt("180000", 16);
+    private int J9FieldTypeLong = Integer.parseInt("380000", 16);
+    private int J9FieldFlagObject = Integer.parseInt("20000", 16);
+    private int J9FieldFlagConstant = Integer.parseInt("400000", 16);
+    private int J9FieldTypeFloat = Integer.parseInt("100000", 16);
+    private int J9FieldTypeMask = Integer.parseInt("380000", 16);
     /////////////////////////////////////
 
     
@@ -86,7 +111,7 @@ public class ROMClassWrapper implements IBootstrapRunnable{
     static final boolean FRAMES = true;
 
     public void run(IVMData vmData, Object[] userData){
-
+	
 	Long addr = new Long((long)userData[0]);
 	this.pointer = J9ROMClassPointer.cast(addr);
 
@@ -94,7 +119,7 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 
 	//need this for method iter, getting a bit much to have everyone here
 	this.cacheMem = (CacheMemorySingleton)userData[2];
-
+	
 	accept(this.classVisitor);
 
     }
@@ -118,6 +143,8 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 	    // version, int access, String name, String signature, String superName, String[] interfaces
 	    classVisitor.visit(version, classModifiers, classname, "", superclassname, new String[] {});
 
+	    readFields(classVisitor, constantPool);
+	    
 	    //method handling
 	    int methodCount = pointer.romMethodCount().intValue();
 	    //first method, therefore use index 1 for loop start
@@ -136,8 +163,43 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 	classVisitor.visitEnd();
     }
 
+    void readFields(ClassVisitor classVisitor, J9ROMConstantPoolItemPointer constantPool) throws CorruptDataException{
+
+	FieldVisitor fv = null;
+	Object value = null;
+	
+	// FieldVisitor visitField(int access, String name, String desc, String signature, Object value
+	UDATA romFieldCount = pointer.romFieldCount();
+	J9ROMFieldShapeIterator iterator = new J9ROMFieldShapeIterator(pointer.romFields(), romFieldCount);
+	J9ROMFieldShapePointer currentField = null;
+	
+	while (iterator.hasNext()) {
+	    currentField = (J9ROMFieldShapePointer) iterator.next();
+
+	    String name = J9UTF8Helper.stringValue(currentField.nameAndSignature().name());
+            String signature = J9UTF8Helper.stringValue(currentField.nameAndSignature().signature());
+	    
+	    if(!currentField.modifiers().bitAnd(J9AccStatic).eq(0)) {
+
+		//if its static, we should get its initial value:
+		//https://github.com/eclipse/openj9/blob/v0.14.0-release/runtime/oti/j9nonbuilder.h#L686
+
+		value = getStaticFieldValue(currentField.modifiers(), J9ROMStaticFieldShapePointer.cast(currentField),  constantPool);
+
+	    }
+	    
+	    //visitField(int access, String name, String desc, String signature, Object value)
+	    fv = classVisitor.visitField(currentField.modifiers().intValue(), name, signature, signature, value);
+	    fv.visitEnd();
+	    value = null;
+	}
+    
+    }
+	
+
     void readMethod(J9ROMMethodPointer romMethod, J9ROMConstantPoolItemPointer constantPool) throws CorruptDataException{
 	//method info                                                                                           
+	
 	int methodModifiers = romMethod.modifiers().intValue();
 	J9ROMNameAndSignaturePointer nameAndSignature = romMethod.nameAndSignature();
 	String name = J9UTF8Helper.stringValue(nameAndSignature.name());
@@ -162,7 +224,53 @@ public class ROMClassWrapper implements IBootstrapRunnable{
         mv.visitMaxs(maxStack, maxLocals);
 	mv.visitEnd();
     }
+    
+    Object getStaticFieldValue(UDATA modsFull, J9ROMStaticFieldShapePointer field , J9ROMConstantPoolItemPointer constantPool) throws CorruptDataException{
 
+	//get just the type portion of the mods
+	int mods = modsFull.intValue() & J9FieldTypeMask;
+	
+	//aka if not a null static
+	if(modsFull.anyBitsIn(J9FieldFlagConstant)) {
+	    
+	    if(mods == J9FieldTypeLong) {   
+		return new Long(field.initialValue().longValue());
+
+	    } else if(mods == J9FieldTypeDouble) { 
+
+	    //field.initialValue is setup like a cp entry, even longValue() +double cast cannot get this as double
+	    //so we manually read it, even though that relies on hard offsets
+	    CacheMemorySource src = this.cacheMem.getMemorySource();
+	    long first = I64Pointer.cast(field.add(1)).at(0).longValue();
+	    long second = I64Pointer.cast(field.add(2)).at(0).longValue();
+	    long constantvalue = (src.getByteOrder() == ByteOrder.BIG_ENDIAN) ? (second << 32) | (first & 0xffffffffL) : (first << 32) | (second & 0xffffffffL);
+	    
+            return new Double(Double.longBitsToDouble(constantvalue));
+	}
+	
+	    else if (modsFull.allBitsIn(J9FieldFlagObject)) {
+		//this initial value is actually an index into the constant pool
+	    J9ROMConstantPoolItemPointer info = constantPool.add(field.initialValue().intValue());
+	    String value = J9UTF8Helper.stringValue(J9ROMStringRefPointer.cast(info).utf8Data());
+	    return value;
+	    
+	} else  {
+	    
+	  /* by default, type is anything that can be read as an int, except for float */
+	   	if(mods == J9FieldTypeFloat){
+		    return new Float(Float.intBitsToFloat(field.initialValue().intValue()));
+		}else{
+		    return new Integer(field.initialValue().intValue());  
+		}
+	    }
+	}
+	else{
+	    return null;
+	}
+
+	
+    }
+    
     void readMethodBody(long bytecodeSt, long bytecodeEnd, MethodVisitor mv, J9ROMConstantPoolItemPointer constantPool) throws CorruptDataException{
 	//drives the visitor to define the body of the method
 	CacheMemorySource src = this.cacheMem.getMemorySource();
