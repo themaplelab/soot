@@ -92,6 +92,11 @@ public class ConstantPoolTest extends AbstractCacheSrcTest {
 			fv.visitEnd();
 		}
 		{
+                    fv = cw.visitField(ACC_PUBLIC + ACC_FINAL + ACC_STATIC, "i0", "I",
+                                        null, new Integer(12));
+		        fv.visitEnd();
+                }
+		{
 		    fv = cw.visitField(ACC_PUBLIC + ACC_FINAL + ACC_STATIC, "i1", "I",
 					null, new Integer(123));
 			fv.visitEnd();
@@ -107,8 +112,9 @@ public class ConstantPoolTest extends AbstractCacheSrcTest {
 			fv.visitEnd();
 		}
 		{
+		    //smallest value required to be held in long
 		    fv = cw.visitField(ACC_PUBLIC + ACC_FINAL + ACC_STATIC, "l2", "J",
-					null, new Long(123L));
+					null, new Long(2147483648L));
 			fv.visitEnd();
 		}
 		{
@@ -126,11 +132,27 @@ public class ConstantPoolTest extends AbstractCacheSrcTest {
 					null, new Double("1234.123046875"));
 			fv.visitEnd();
 		}
+		{                                                                                                         
+
+                    fv = cw.visitField(ACC_PUBLIC + ACC_FINAL , "d3", "D", null, null);                                                                     
+                        fv.visitEnd();                                                                                    
+
+                }
 		{
-		    fv = cw.visitField(ACC_PUBLIC + ACC_FINAL + ACC_STATIC, "d3", "D",
-					null, null);
-			fv.visitEnd();
+		    fv = cw.visitField(ACC_PUBLIC + ACC_FINAL + ACC_STATIC, "d4", "D",
+				       null, new Double("12345.07891235672"));
+                        fv.visitEnd();
 		}
+		{
+                    fv = cw.visitField(ACC_PUBLIC + ACC_FINAL + ACC_STATIC, "d5", "D",
+                                       null, new Double("54321.5432154321"));
+                        fv.visitEnd();
+		}
+		{
+		    fv = cw.visitField(ACC_PUBLIC + ACC_FINAL + ACC_STATIC, "f1", "F",
+		                       null, new Float("1.87f"));
+                        fv.visitEnd();
+                }
 		{
 			mv = cw.visitMethod(ACC_STATIC, "<clinit>", "()V", null, null);
 			mv.visitCode();
