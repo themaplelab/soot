@@ -35,6 +35,7 @@ import com.ibm.j9ddr.vm29.pointer.helper.J9ROMFieldShapeHelper;
 
 
 import com.ibm.j9ddr.vm29.types.UDATA;
+import com.ibm.j9ddr.vm29.types.I16;
 import com.ibm.j9ddr.vm29.pointer.I64Pointer;
 import com.ibm.j9ddr.vm29.pointer.U16Pointer;
 import com.ibm.j9ddr.vm29.pointer.U32Pointer;
@@ -277,7 +278,7 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 	long ptr = bytecodeSt;
 	
 	//for our targets, as we find them
-	//Label[] labels = new Label[(bytecodeEnd-bytecodeSt)];
+	Label[] labels = findLabels(bytecodeSt,bytecodeEnd, ptr, src);
 	
         while(ptr < bytecodeEnd){
 	    int offset = (int)(ptr - bytecodeSt);
@@ -285,6 +286,12 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 
 	    System.out.println("The opcode value is: "+ opcode);
 	    System.out.println("The opcode offset is: "+offset);
+
+	    //visit a label if there is one
+	    Label l = labels[offset];
+	    if(l != null){
+		mv.visitLabel(l);
+	    }
 	    
 	    if((opcode == BCNames.JBnop) ||
 	       (opcode == BCNames.JBinvokeinterface2)){
@@ -393,34 +400,42 @@ public class ROMClassWrapper implements IBootstrapRunnable{
                     mv.visitVarInsn(Opcodes.ISTORE + (opcode >> 2),
                             opcode & 0x3);
                 } else {
+
+		    System.out.println("Using this original opcodes: "+opcode);
+		    
                     opcode -= 26; // ILOAD_0
+
+		    System.out.println("Using this opcode for the load insn: "+ (Opcodes.ILOAD + (opcode >> 2)));
+                    System.out.println("Using this var offset for the load insn: "+ (opcode & 0x3));
+		    
                     mv.visitVarInsn(Opcodes.ILOAD + (opcode >> 2), opcode & 0x3);
                 }
 		ptr += 1;	
 	    }
 	    else if(opcode == BCNames.JBaload0getfield){
-		 mv.visitVarInsn(Opcodes.ILOAD + (opcode >> 2), opcode & 0x3);
-		 ptr += 1;
+		//not sure if this actually needs to be handled
+		System.out.println("Found a JBaload0getfield");
+		mv.visitVarInsn(Opcodes.ILOAD + (opcode >> 2), opcode & 0x3);
+		ptr += 1;
 	    }
 	    else if((opcode == BCNames.JBifeq) ||
-	    (opcode == BCNames.JBifne) ||
-	    (opcode == BCNames.JBiflt) ||
-	    (opcode == BCNames.JBifge) ||
-	    (opcode == BCNames.JBifgt) ||
-	    (opcode == BCNames.JBifle) ||
-	    (opcode == BCNames.JBificmpeq) ||
-	    (opcode == BCNames.JBificmpne) ||
-	    (opcode == BCNames.JBificmplt) ||
-	    (opcode == BCNames.JBificmpge) ||
-	    (opcode == BCNames.JBificmpgt) ||
-	    (opcode == BCNames.JBificmple) ||
-	    (opcode == BCNames.JBifacmpeq) ||
-	    (opcode == BCNames.JBifacmpne) ||
-	    (opcode == BCNames.JBgoto) ||
-	    (opcode == BCNames.JBifnull) ||
+		    (opcode == BCNames.JBifne) ||
+		    (opcode == BCNames.JBiflt) ||
+		    (opcode == BCNames.JBifge) ||
+		    (opcode == BCNames.JBifgt) ||
+		    (opcode == BCNames.JBifle) ||
+		    (opcode == BCNames.JBificmpeq) ||
+		    (opcode == BCNames.JBificmpne) ||
+		    (opcode == BCNames.JBificmplt) ||
+		    (opcode == BCNames.JBificmpge) ||
+		    (opcode == BCNames.JBificmpgt) ||
+		    (opcode == BCNames.JBificmple) ||
+		    (opcode == BCNames.JBifacmpeq) ||
+		    (opcode == BCNames.JBifacmpne) ||
+		    (opcode == BCNames.JBgoto) ||
+		    (opcode == BCNames.JBifnull) ||
 		    (opcode == BCNames.JBifnonnull)){
-		//	    createLabel(opcode, ptr, labels);
-		//mv.visitJumpInsn(opcode, labels[offset + src.getShort(ptr + 1)]);
+		mv.visitJumpInsn(opcode, labels[offset + src.getShort(ptr + 1)]);
 		ptr += 3;
 	    }
 	    else if(opcode == BCNames.JBgotow){
@@ -460,7 +475,7 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 		}
 	    else if(opcode == BCNames.JBlookupswitch){
 		// skips 0 to 3 padding bytes
-		ptr = ptr + 4 - (offset & 3);
+		/*		ptr = ptr + 4 - (offset & 3);
 		// reads instruction
 		int label = offset + src.getInt(ptr);
 		int len = src.getInt(ptr + 4);
@@ -471,7 +486,7 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 		    keys[i] = src.getInt(ptr);
 		    //values[i] = labels[offset + src.getInt(ptr + 4)];
 		    ptr += 8;
-		    }
+		    }*/
 		//mv.visitLookupSwitchInsn(labels[label], keys, values);
 	    }
 	    else if(opcode == BCNames.JBiloadw){
@@ -688,6 +703,7 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 		int index = src.getShort(ptr+1);
 		J9ROMConstantPoolItemPointer info = constantPool.add(index);
 		String classname = J9UTF8Helper.stringValue(J9ROMStringRefPointer.cast(info).utf8Data());
+		System.out.println("In the instanceof condition with this classname"+classname);
 		mv.visitTypeInsn(opcode, classname);
                 ptr += 3;
 	    }
@@ -706,13 +722,168 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 	    }
 	}
     }
+
+    //need to find labels before everything else
+    public Label[] findLabels(long bytecodeSt, long bytecodeEnd, long ptr, CacheMemorySource src){
+	Label[] labels = new Label[(int)(bytecodeEnd- bytecodeSt)];
+	  while(ptr < bytecodeEnd){
+            int offset = (int)(ptr - bytecodeSt);
+            int opcode = (int)(src.getByte(ptr) & 0xFF);
+
+	    if((opcode == BCNames.JBifeq) ||
+	       (opcode == BCNames.JBifne) ||
+	       (opcode == BCNames.JBiflt) ||
+	       (opcode == BCNames.JBifge) ||
+	       (opcode == BCNames.JBifgt) ||
+	       (opcode == BCNames.JBifle) ||
+	       (opcode == BCNames.JBificmpeq) ||
+	       (opcode == BCNames.JBificmpne) ||
+	       (opcode == BCNames.JBificmplt) ||
+	       (opcode == BCNames.JBificmpge) ||
+	       (opcode == BCNames.JBificmpgt) ||
+	       (opcode == BCNames.JBificmple) ||
+	       (opcode == BCNames.JBifacmpeq) ||
+	       (opcode == BCNames.JBifacmpne) ||
+	       (opcode == BCNames.JBgoto) ||
+	       (opcode == BCNames.JBifnull) ||
+	       (opcode == BCNames.JBifnonnull)){
+
+		createLabel(opcode, ptr, labels, src, bytecodeSt);
+		//mv.visitJumpInsn(opcode, labels[offset + src.getShort(ptr + 1)]);
+		ptr += 3;
+	    }
+	    else if(opcode == BCNames.JBgotow){
+		//mv.visitJumpInsn(opcode + opcodeDelta, labels[offset
+		//						  + src.getInt(ptr + 1)]);
+		ptr += 5;
+		}
+	    else if(opcode == 196){
+	    //196 == WIDE                                                                                            
+            //BCNames does not have a wide opcode...                                                                     
+            //but both Walker https://github.com/eclipse/openj9/blob/v0.14.0-release/runtime/compiler/ilgen/Walker.cpp#L1494                                                                                                                      
+            //and ilgen maybe expect it to exist https://github.com/eclipse/openj9/blob/v0.14.0-release/runtime/compiler/ilgen/J9ByteCode.hpp#L111   
+		opcode = src.getInt(ptr + 1);
+		if (opcode == BCNames.JBiinc) {
+		    ptr += 6;
+		} else {
+		    ptr += 4;
+		}
+	    }
+	    else if((opcode == BCNames.JBdefaultvalue) ||
+		    (opcode == BCNames.JBwithfield) ||
+		    (opcode == BCNames.JBiinc) ||
+		    (opcode == BCNames.JBistore) ||
+		    (opcode == BCNames.JBlstore) ||
+		    (opcode == BCNames.JBfstore) ||
+		    (opcode == BCNames.JBdstore) ||
+		    (opcode == BCNames.JBastore) ||
+		    (opcode == BCNames.JBiload) ||
+		    (opcode == BCNames.JBlload) ||
+		    (opcode == BCNames.JBfload) ||
+		    (opcode == BCNames.JBdload) ||
+		    (opcode == BCNames.JBaload) || 
+		    (opcode == BCNames.JBnewarray) || 
+		    (opcode == BCNames.JBbipush) || 
+		    (opcode == BCNames.JBldc)){
+		ptr += 2;
+	    }
+
+	    else if((opcode == BCNames.JBiincw) ||
+		    (opcode == BCNames.JBinvokedynamic) ||
+		    (opcode == BCNames.JBinvokeinterface)){
+		ptr += 5;
+	    }
+	    else if(opcode == BCNames.JBmultianewarray){
+		ptr += 4;
+	    }
+	
+	    else if((opcode == BCNames.JBnewdup) ||
+                    (opcode == BCNames.JBnew)||
+                    (opcode == BCNames.JBanewarray) ||
+                    (opcode == BCNames.JBcheckcast) ||
+                    (opcode == BCNames.JBinstanceof) ||
+		    (opcode == BCNames.JBiinc) ||
+		    (opcode == BCNames.JBnewdup)||
+		    (opcode == BCNames.JBinvokehandle) ||
+		    (opcode == BCNames.JBinvokehandlegeneric) ||
+		    (opcode == BCNames.JBinvokestaticsplit) ||
+		    (opcode == BCNames.JBinvokespecialsplit) || 
+		    (opcode == BCNames.JBiloadw)||
+		    (opcode == BCNames.JBistorew) ||
+		    (opcode == BCNames.JBlloadw) || 
+		    (opcode == BCNames.JBlstorew) || 
+		    (opcode == BCNames.JBdloadw) ||
+		    (opcode == BCNames.JBfloadw) ||
+		    (opcode == BCNames.JBaloadw) || 
+		    (opcode == BCNames.JBfstorew) ||
+		    (opcode == BCNames.JBdstorew) ||
+		    (opcode == BCNames.JBastorew) ||
+		    (opcode == BCNames.JBsipush) ||
+		    (opcode == BCNames.JBldcw) ||
+		    (opcode == BCNames.JBldc2lw) || 
+		    (opcode == BCNames.JBldc2dw) ||
+		    (opcode == BCNames.JBgetstatic) ||
+		    (opcode == BCNames.JBputstatic) ||
+		    (opcode == BCNames.JBgetfield) ||
+		    (opcode == BCNames.JBputfield) ||
+		    (opcode == BCNames.JBinvokevirtual) ||
+                    (opcode == BCNames.JBinvokespecial) ||
+                    (opcode == BCNames.JBinvokestatic)){
+		ptr += 3;
+	    }
+	    else if(opcode == BCNames.JBtableswitch)
+		{
+		// skips 0 to 3 padding bytes
+		ptr = ptr + 4 - (offset & 3);
+		// reads instrptrction
+		//    int label = offset + src.getInt(ptr);
+		//int min = src.getInt(ptr + 4);
+		//int max = src.getInt(ptr + 8);
+		//Label[] table = new Label[max - min + 1];
+		ptr += 12;
+		//for (int i = 0; i < table.length; ++i) {
+		//	table[i] = labels[offset + src.getInt(ptr)];
+		//	ptr += 4;
+		//}
+		//mv.visitTableSwitchInsn(min, max, labels[label], table);
+		}
+	    else if(opcode == BCNames.JBlookupswitch){
+		// skips 0 to 3 padding bytes
+		/*		ptr = ptr + 4 - (offset & 3);
+		// reads instruction
+		int label = offset + src.getInt(ptr);
+		int len = src.getInt(ptr + 4);
+		int[] keys = new int[len];
+		Label[] values = new Label[len];
+		ptr += 8;
+		for (int i = 0; i < len; ++i) {
+		    keys[i] = src.getInt(ptr);
+		    //values[i] = labels[offset + src.getInt(ptr + 4)];
+		    ptr += 8;
+		    }*/
+		//mv.visitLookupSwitchInsn(labels[label], keys, values);
+	    }
+	    else{
+		ptr += 1;
+	    }
+
+	  }
+	  return labels;
+    }
+    
     //populates a label table for us, to use later, that represent targets of jumps
-    public void createLabel(byte opcode, long ptr, Label[] labels){
-	int index;
+    public void createLabel(int opcode, long ptr, Label[] labels, CacheMemorySource src, long methodSt){
+	int offset;
 	if(opcode == BCNames.JBgotow) {
-	    index = 1;
+	    offset  = src.getInt(ptr + 1);
 	}else{
-	    index = 2;
+	    offset  = src.getShort(ptr + 1);
+	}
+	long target =  ptr + offset;
+	int labelIndex = (int)(target - methodSt);
+	if(labels[labelIndex] == null){
+	    System.out.println("Creating a new label at this label index: "+labelIndex);
+	    labels[labelIndex] = new Label();
 	}
 	
     }
