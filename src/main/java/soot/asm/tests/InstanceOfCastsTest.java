@@ -39,7 +39,7 @@ public class InstanceOfCastsTest  extends AbstractCacheSrcTest{
 public static void genExampleInput(ClassWriter cw){
     MethodVisitor mv;
 
-    cw.visit(V1_1, ACC_PUBLIC + ACC_SUPER, "InstanceOfCastsGenerated",
+    cw.visit(V1_1, ACC_PUBLIC + ACC_SUPER, "InstanceOfCastsTestGenerated",
 				null, "java/lang/Object", null);
 		cw.visitSource("InstanceOfCasts.java", null);
 		
