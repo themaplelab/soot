@@ -402,8 +402,13 @@ public class ROMClassWrapper implements IBootstrapRunnable{
                     (opcode == BCNames.JBastore2) ||
                     (opcode == BCNames.JBastore3)){
 		if (opcode > Opcodes.ISTORE) {
-                    opcode -= 59; // ISTORE_0
-                    mv.visitVarInsn(Opcodes.ISTORE + (opcode >> 2),
+		    System.out.println("Using this original opcodes: "+opcode);
+		    opcode -= 59; // ISTORE_0
+
+		    System.out.println("Using this opcode for the store insn: "+ (Opcodes.ISTORE + (opcode >> 2)));
+                    System.out.println("Using this var offset for the store insn: "+ (opcode & 0x3));
+
+		    mv.visitVarInsn(Opcodes.ISTORE + (opcode >> 2),
                             opcode & 0x3);
                 } else {
 
@@ -419,10 +424,23 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 		ptr += 1;	
 	    }
 	    else if(opcode == BCNames.JBaload0getfield){
-		//not sure if this actually needs to be handled
-		System.out.println("Found a JBaload0getfield");
-		mv.visitVarInsn(Opcodes.ILOAD + (opcode >> 2), opcode & 0x3);
-		ptr += 1;
+		//handle this as an aload0, followed by a getfield (where the index is 2 bytes in?)
+		//https://github.com/eclipse/openj9/blob/v0.14.0-release/runtime/vm/BytecodeInterpreter.hpp#L6480
+		mv.visitVarInsn(25, 0);
+		int index = src.getUnsignedShort(ptr+2);
+		J9ROMConstantPoolItemPointer info = constantPool.add(index);
+
+                J9ROMFieldRefPointer romFieldRef = J9ROMFieldRefPointer.cast(info);
+                String owner = J9UTF8Helper.stringValue(J9ROMClassRefPointer.cast(constantPool.add(romFieldRef.classRefCPIndex())).name());
+
+                J9ROMNameAndSignaturePointer nameAndSig = romFieldRef.nameAndSignature();
+                String name = J9UTF8Helper.stringValue(nameAndSig.name());
+                String desc = J9UTF8Helper.stringValue(nameAndSig.signature());
+		System.out.println("Using this owner class for the aload0getfield: "+owner);
+		System.out.println("Using this name for the aload0getfield: "+ name);
+		System.out.println("Using this  desc for the aload0getfield: "+ desc);
+		mv.visitFieldInsn(180, owner, name, desc);
+		ptr += 4;
 	    }
 	    else if((opcode == BCNames.JBifeq) ||
 		    (opcode == BCNames.JBifne) ||
@@ -445,8 +463,7 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 		ptr += 3;
 	    }
 	    else if(opcode == BCNames.JBgotow){
-		//mv.visitJumpInsn(opcode + opcodeDelta, labels[offset
-		//						  + src.getInt(ptr + 1)]);
+		mv.visitJumpInsn(opcode , labels[offset + src.getInt(ptr + 1)]);
 		ptr += 5;
 		}
 	    else if(opcode == 196){
@@ -465,23 +482,22 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 	    }
 	    else if(opcode == BCNames.JBtableswitch)
 		{
-		// skips 0 to 3 padding bytes
-		ptr = ptr + 4 - (offset & 3);
-		// reads instrptrction
-		//    int label = offset + src.getInt(ptr);
-		//int min = src.getInt(ptr + 4);
-		//int max = src.getInt(ptr + 8);
-		//Label[] table = new Label[max - min + 1];
-		ptr += 12;
-		//for (int i = 0; i < table.length; ++i) {
-		//	table[i] = labels[offset + src.getInt(ptr)];
-		//	ptr += 4;
-		//}
-		//mv.visitTableSwitchInsn(min, max, labels[label], table);
+		    ptr = ptr + 4 - (offset & 3);
+		    // reads instruction
+		    int label = offset + src.getInt(ptr);
+		    int min = src.getInt(ptr + 4);
+		    int max = src.getInt(ptr + 8);
+		    Label[] table = new Label[max - min + 1];
+		    ptr += 12;
+		    for (int i = 0; i < table.length; ++i) {
+                        table[i] = labels[offset + src.getInt(ptr)];
+			ptr += 4;
+		    }
+		    mv.visitTableSwitchInsn(min, max, labels[label], table);
 		}
 	    else if(opcode == BCNames.JBlookupswitch){
 		// skips 0 to 3 padding bytes
-		/*		ptr = ptr + 4 - (offset & 3);
+		ptr = ptr + 4 - (offset & 3);
 		// reads instruction
 		int label = offset + src.getInt(ptr);
 		int len = src.getInt(ptr + 4);
@@ -490,10 +506,10 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 		ptr += 8;
 		for (int i = 0; i < len; ++i) {
 		    keys[i] = src.getInt(ptr);
-		    //values[i] = labels[offset + src.getInt(ptr + 4)];
+		    values[i] = labels[offset + src.getInt(ptr + 4)];
 		    ptr += 8;
-		    }*/
-		//mv.visitLookupSwitchInsn(labels[label], keys, values);
+		}
+		mv.visitLookupSwitchInsn(labels[label], keys, values);
 	    }
 	    else if(opcode == BCNames.JBiloadw){
 		//TODO double check these
@@ -635,11 +651,11 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 
 		mv.visitMethodInsn(opcode, owner, name, desc, itf);
 
-		if (itf) {
-		    ptr += 5;
-		} else {
+		//		if (itf) {
+		//  ptr += 5;
+		//} else {
 		    ptr += 3;
-		}
+		    //}
 	    }
 
 	    //TODO finish aka get real rest of info for handle
@@ -768,6 +784,7 @@ public class ROMClassWrapper implements IBootstrapRunnable{
             int offset = (int)(ptr - bytecodeSt);
             int opcode = (int)(src.getByte(ptr) & 0xFF);
 
+	     System.out.println("In findLabels, with opcode:"+opcode);
 	    if((opcode == BCNames.JBifeq) ||
 	       (opcode == BCNames.JBifne) ||
 	       (opcode == BCNames.JBiflt) ||
@@ -787,12 +804,10 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 	       (opcode == BCNames.JBifnonnull)){
 
 		createLabel(opcode, ptr, labels, src, bytecodeSt);
-		//mv.visitJumpInsn(opcode, labels[offset + src.getShort(ptr + 1)]);
 		ptr += 3;
 	    }
 	    else if(opcode == BCNames.JBgotow){
-		//mv.visitJumpInsn(opcode + opcodeDelta, labels[offset
-		//						  + src.getInt(ptr + 1)]);
+		createLabel(opcode, ptr, labels, src, bytecodeSt);
 		ptr += 5;
 		}
 	    else if(opcode == 196){
@@ -827,8 +842,7 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 	    }
 
 	    else if((opcode == BCNames.JBiincw) ||
-		    (opcode == BCNames.JBinvokedynamic) ||
-		    (opcode == BCNames.JBinvokeinterface)){
+		    (opcode == BCNames.JBinvokedynamic)){
 		ptr += 5;
 	    }
 	    else if(opcode == BCNames.JBmultianewarray){
@@ -866,40 +880,37 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 		    (opcode == BCNames.JBputfield) ||
 		    (opcode == BCNames.JBinvokevirtual) ||
                     (opcode == BCNames.JBinvokespecial) ||
-                    (opcode == BCNames.JBinvokestatic)){
+                    (opcode == BCNames.JBinvokestatic) ||
+		    (opcode == BCNames.JBinvokeinterface)){
 		ptr += 3;
 	    }
 	    else if(opcode == BCNames.JBtableswitch)
 		{
-		// skips 0 to 3 padding bytes
-		ptr = ptr + 4 - (offset & 3);
-		// reads instrptrction
-		//    int label = offset + src.getInt(ptr);
-		//int min = src.getInt(ptr + 4);
-		//int max = src.getInt(ptr + 8);
-		//Label[] table = new Label[max - min + 1];
-		ptr += 12;
-		//for (int i = 0; i < table.length; ++i) {
-		//	table[i] = labels[offset + src.getInt(ptr)];
-		//	ptr += 4;
-		//}
-		//mv.visitTableSwitchInsn(min, max, labels[label], table);
+		    ptr = ptr + 4 - (offset & 3);
+		    //reads the default
+		    addLabel(labels, offset + src.getInt(ptr));
+		    int min = src.getInt(ptr + 4);
+		    int max = src.getInt(ptr + 8);
+		    Label[] table = new Label[max - min + 1];
+		    ptr += 12;
+		    for (int i = 0; i < table.length; ++i) {
+                        addLabel(labels, offset + src.getInt(ptr));
+                        ptr += 4;
+		    }
 		}
 	    else if(opcode == BCNames.JBlookupswitch){
-		// skips 0 to 3 padding bytes
-		/*		ptr = ptr + 4 - (offset & 3);
-		// reads instruction
-		int label = offset + src.getInt(ptr);
-		int len = src.getInt(ptr + 4);
-		int[] keys = new int[len];
-		Label[] values = new Label[len];
-		ptr += 8;
-		for (int i = 0; i < len; ++i) {
-		    keys[i] = src.getInt(ptr);
-		    //values[i] = labels[offset + src.getInt(ptr + 4)];
+		// skips 0 to 3 padding bytes                                                                           
+		ptr = ptr + 4 - (offset & 3);
+                // reads instruction
+		addLabel(labels, offset + src.getInt(ptr));
+                int len = src.getInt(ptr + 4);
+                int[] keys = new int[len];
+                Label[] values = new Label[len];
+                ptr += 8;
+	        for (int i = 0; i < len; ++i) {
+		    addLabel(labels, offset + src.getInt(ptr + 4) );
 		    ptr += 8;
-		    }*/
-		//mv.visitLookupSwitchInsn(labels[label], keys, values);
+		}
 	    }
 	    else{
 		ptr += 1;
@@ -919,10 +930,16 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 	}
 	long target =  ptr + offset;
 	int labelIndex = (int)(target - methodSt);
+
+        //TODO potentially refactor, this is wasteful but we handled target calculation in here....
+	addLabel(labels, labelIndex);
+    }
+
+    public void addLabel(Label[] labels, int labelIndex){
 	if(labels[labelIndex] == null){
-	    System.out.println("Creating a new label at this label index: "+labelIndex);
-	    labels[labelIndex] = new Label();
-	}
+            System.out.println("Creating a new label at this label index: "+labelIndex);
+            labels[labelIndex] = new Label();
+        }
 	
     }
 
