@@ -35,7 +35,7 @@ import com.ibm.j9ddr.vm29.pointer.helper.J9ROMFieldShapeHelper;
 
 
 import com.ibm.j9ddr.vm29.types.UDATA;
-import com.ibm.j9ddr.vm29.types.I16;
+import com.ibm.j9ddr.vm29.types.U8;
 import com.ibm.j9ddr.vm29.pointer.I64Pointer;
 import com.ibm.j9ddr.vm29.pointer.U16Pointer;
 import com.ibm.j9ddr.vm29.pointer.U32Pointer;
@@ -217,10 +217,15 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 
 	long bytecodeSt = J9ROMMethodHelper.bytecodes(romMethod).longValue();
 	long bytecodeEnd = J9ROMMethodHelper.bytecodeEnd(romMethod).longValue();
+	//TODO find a better way, there has got to be some api for this...
+	char returnType = signature.charAt(signature.lastIndexOf(")") + 1);
+	if(returnType == '['){
+	    returnType = signature.charAt(signature.lastIndexOf(")") + 2);
+	}
 	System.out.println("the st and end of the bytes: " + bytecodeSt+"and "+bytecodeEnd);
 	//visitMethod(int access, String name, String desc, String signature, String[] exceptions)              
 	MethodVisitor mv = classVisitor.visitMethod(methodModifiers, name, signature, signature, new String[] {});
-	readMethodBody(bytecodeSt, bytecodeEnd, mv, constantPool);
+	readMethodBody(bytecodeSt, bytecodeEnd, mv, constantPool, returnType);
 	//for now
         mv.visitMaxs(maxStack, maxLocals);
 	mv.visitEnd();
@@ -272,7 +277,7 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 	
     }
     
-    void readMethodBody(long bytecodeSt, long bytecodeEnd, MethodVisitor mv, J9ROMConstantPoolItemPointer constantPool) throws CorruptDataException{
+    void readMethodBody(long bytecodeSt, long bytecodeEnd, MethodVisitor mv, J9ROMConstantPoolItemPointer constantPool, char returnType) throws CorruptDataException{
 	//drives the visitor to define the body of the method
 	CacheMemorySource src = this.cacheMem.getMemorySource();
 	long ptr = bytecodeSt;
@@ -344,7 +349,8 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 		//return0,1,2 correspond to return(pop 0 slots), return(pop 1 slot) and return(pop 2 slots)
 		//we can almost deal with the last two as ireturn lreturn , but this may have a type problem
 		//TODO fix this...
-		mv.visitInsn(Opcodes.RETURN);
+		opcode = getReturnType(returnType);
+		mv.visitInsn(opcode);
 		ptr += 1;
 	    }
 	    else if((opcode == BCNames.JBinvokehandle) ||
@@ -723,6 +729,38 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 	}
     }
 
+    public int getReturnType(char returnType){
+
+	//default is void return
+	int opcode = 177;
+	System.out.println("The return type is: " + returnType);
+
+	switch(returnType){
+	case 'Z':
+	case 'B':
+	case 'C':
+	case 'S':
+	case 'I':
+	    opcode = 172; //ireturn
+	    break;
+	case 'J':
+	    opcode = 173; //lreturn
+	    break;
+	case 'F':
+	    opcode = 174; //freturn
+	    break;
+	case 'D':
+	    opcode = 175; //dreturn
+	    break;
+	case 'L':
+	    opcode = 176; //areturn                                                                                      
+            break;
+	default:
+	    break; // void
+	}
+
+	return opcode;
+    }
     //need to find labels before everything else
     public Label[] findLabels(long bytecodeSt, long bytecodeEnd, long ptr, CacheMemorySource src){
 	Label[] labels = new Label[(int)(bytecodeEnd- bytecodeSt)];
