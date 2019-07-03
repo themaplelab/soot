@@ -148,12 +148,10 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 	    
 	    //method handling
 	    int methodCount = pointer.romMethodCount().intValue();
-	    //first method, therefore use index 1 for loop start
 	    J9ROMMethodPointer romMethod = pointer.romMethods();
-	    readMethod(romMethod, constantPool);
-	    for(int i = 1; i < methodCount; i++){
-		romMethod = ROMHelp.nextROMMethod(romMethod);
+	    for(int i = 0; i < methodCount; i++){
 		readMethod(romMethod, constantPool);
+		romMethod = ROMHelp.nextROMMethod(romMethod);
 	    }
 	    
 	}catch(Exception e){
