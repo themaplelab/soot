@@ -3,6 +3,7 @@ package com.ibm.j9ddr.vm29;
 import com.ibm.j9ddr.vm29.j9.BCNames;
 
 import com.ibm.j9ddr.CorruptDataException;
+import com.ibm.j9ddr.InvalidDataTypeException;
 import com.ibm.j9ddr.NullPointerDereference;
 import com.ibm.j9ddr.IBootstrapRunnable;
 import com.ibm.j9ddr.IVMData;
@@ -92,7 +93,8 @@ public class ROMClassWrapper implements IBootstrapRunnable{
     //J9FieldTypeLong 0x380000
     //J9FieldTypeFloat 0x100000
     //J9FieldFlagObject 0x20000
-
+    //J9FieldTypeByte 0x200000
+    
     //likely less efficient than hardcoding the ints, but this is easier to read and check since the vals in nonbuilder
     //are in hex
     private int J9FieldTypeDouble = Integer.parseInt("180000", 16);
@@ -101,6 +103,7 @@ public class ROMClassWrapper implements IBootstrapRunnable{
     private int J9FieldFlagConstant = Integer.parseInt("400000", 16);
     private int J9FieldTypeFloat = Integer.parseInt("100000", 16);
     private int J9FieldTypeMask = Integer.parseInt("380000", 16);
+    private int J9FieldTypeByte = Integer.parseInt("200000", 16);
     /////////////////////////////////////
 
     
@@ -258,13 +261,19 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 	    String value = J9UTF8Helper.stringValue(J9ROMStringRefPointer.cast(info).utf8Data());
 	    return value;
 	    
-	} else  {
+	    } else  {
 	    
 	  /* by default, type is anything that can be read as an int, except for float */
 	   	if(mods == J9FieldTypeFloat){
 		    return new Float(Float.intBitsToFloat(field.initialValue().intValue()));
+		}else if(mods == J9FieldTypeByte){
+                    return new Byte(field.initialValue().byteValue());
 		}else{
-		    return new Integer(field.initialValue().intValue());  
+		    try{
+			return new Integer(field.initialValue().intValue());
+		    }catch(InvalidDataTypeException e){
+			return new Integer((int)field.initialValue().longValue());
+		    }
 		}
 	    }
 	}
