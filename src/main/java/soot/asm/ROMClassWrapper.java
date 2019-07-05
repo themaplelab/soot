@@ -138,7 +138,14 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 	    int version = pointer.majorVersion().intValue();
 	    int classModifiers = pointer.modifiers().intValue();
 	    String classname = J9UTF8Helper.stringValue(pointer.className());
-	    String superclassname = J9UTF8Helper.stringValue(pointer.superclassName());
+	    J9UTF8Pointer superclassPointer = pointer.superclassName();
+	    String superclassname;
+	    //java.lang.Object has no superclass
+	    if(superclassPointer == J9UTF8Pointer.NULL){
+		superclassname = null;
+	    }else{
+		superclassname = J9UTF8Helper.stringValue(superclassPointer);
+	    }
 
 	    //reference to constant pool
 	    J9ROMConstantPoolItemPointer constantPool = J9ROMClassHelper.constantPool(pointer);
