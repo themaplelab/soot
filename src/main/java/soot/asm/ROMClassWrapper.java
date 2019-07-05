@@ -316,12 +316,14 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 	    }
 	    else if(opcode == BCNames.JBiinc){
                 int LVAindex = src.getByte(ptr+1);
-                mv.visitIincInsn(LVAindex, (int)src.getByte(LVAindex));
+		int increment = src.getByte(ptr+2);
+                mv.visitIincInsn(LVAindex, increment);
                 ptr += 2;
             }
 	    else if(opcode == BCNames.JBiincw){
 		int LVAindex = src.getShort(ptr+1);
-		mv.visitIincInsn(LVAindex, (int)src.getShort(LVAindex));
+		int increment =	src.getShort(ptr+3);
+		mv.visitIincInsn(LVAindex, increment);
 		ptr += 5;
 	    }
 	    else if(opcode == BCNames.JBmultianewarray){
