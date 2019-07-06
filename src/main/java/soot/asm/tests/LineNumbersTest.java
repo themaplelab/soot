@@ -39,7 +39,7 @@ public class LineNumbersTest extends AbstractCacheSrcTest{
 public static void genExampleInput(ClassWriter cw){
     MethodVisitor mv;
 
-    cw.visit(V1_1, ACC_PUBLIC + ACC_SUPER, "LineNumbersGenerated", null, "java/lang/Object", null);
+    cw.visit(V1_1, ACC_PUBLIC + ACC_SUPER, "LineNumbersTestGenerated", null, "java/lang/Object", null);
 		cw.visitSource("LineNumbers.java", null);
 
 		{
@@ -61,8 +61,8 @@ public static void genExampleInput(ClassWriter cw){
 			mv.visitEnd();
 		}
 		{
-
-			mv.visitCode();
+		    mv = cw.visitMethod(ACC_PUBLIC + ACC_STATIC, "main", "([Ljava/lang/String;)V", null, null);
+		    mv.visitCode();
 			Label l0 = new Label();
 			mv.visitLabel(l0);
 			mv.visitLineNumber(28, l0);
