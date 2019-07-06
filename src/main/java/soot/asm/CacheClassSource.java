@@ -25,50 +25,15 @@ package soot.asm;
 import java.io.IOException;
 import java.io.FileNotFoundException;
 import java.io.InputStream;
-import java.io.ByteArrayInputStream;
-
-import org.objectweb.asm.ClassReader;
-import org.objectweb.asm.ClassWriter;
-import org.objectweb.asm.Opcodes;
 
 import soot.ClassSource;
 import soot.FoundFile;
 import soot.SootClass;
 import soot.javaToJimple.IInitialResolver.Dependencies;
 
-import java.util.Arrays;
-import java.util.ArrayList;
-import java.util.List;
-
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import com.ibm.j9ddr.corereaders.memory.MemoryFault;
-import com.ibm.j9ddr.tools.ddrinteractive.CacheMemory;
-import com.ibm.j9ddr.tools.ddrinteractive.CacheMemorySource;
-
-//for ddr init attempt
-import com.ibm.j9ddr.vm29.j9.VMData;
 import com.ibm.j9ddr.IVMData;
 import com.ibm.j9ddr.VMDataFactory;
 import com.ibm.j9ddr.corereaders.memory.IProcess;
-
-//for romclasspointer
-import com.ibm.j9ddr.vm29.pointer.generated.J9ROMClassPointer;
-import com.ibm.j9ddr.vm29.pointer.helper.J9ROMClassHelper;
-
-import com.ibm.j9ddr.vm29.pointer.generated.J9UTF8Pointer;
-
-//for ddrclassloader
-import com.ibm.j9ddr.J9DDRClassLoader;
-import java.lang.reflect.Method;
-import com.ibm.j9ddr.vm29.j9.DataType;
-
-import  java.lang.reflect.Constructor;
-import java.lang.reflect.Field;
-
-//base address test
-import com.ibm.j9ddr.vm29.pointer.generated.*;
-import com.ibm.j9ddr.vm29.pointer.AbstractPointer;
 
 /**
  * Cache class source implementation.
