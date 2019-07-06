@@ -236,12 +236,9 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 	int maxStack = romMethod.maxStack().intValue();
 	int maxLocals = romMethod.tempCount().intValue() + romMethod.argCount().intValue();
 	int argCount = romMethod.argCount().intValue();
-	System.out.println("The name and sig: "+ name +" " + signature);
 
-	System.out.println("The max stack and max loc and arg count: "+ maxStack+" "+ maxLocals+" "+argCount );
 	int romMethodSize = J9ROMMethodHelper.bytecodeSize(romMethod).intValue();
-	System.out.println("The size of the method is :  "+romMethodSize);
-
+	
 	long bytecodeSt = J9ROMMethodHelper.bytecodes(romMethod).longValue();
 	long bytecodeEnd = J9ROMMethodHelper.bytecodeEnd(romMethod).longValue();
 	//TODO find a better way, there has got to be some api for this...
@@ -249,7 +246,7 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 	if(returnType == '['){
 	    returnType = signature.charAt(signature.lastIndexOf(")") + 2);
 	}
-	System.out.println("the st and end of the bytes: " + bytecodeSt+"and "+bytecodeEnd);
+
 	String[] exceptions = getExceptions(romMethod);
 	//visitMethod(int access, String name, String desc, String signature, String[] exceptions)              
 	MethodVisitor mv = classVisitor.visitMethod(methodModifiers, name, signature, signature, exceptions);
@@ -270,7 +267,6 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 	    if(throwCount > 0){
 		SelfRelativePointer currentThrowName = ROMHelp.J9EXCEPTIONINFO_THROWNAMES(exceptionData);
 		for(int i = 0; i < throwCount; i++){
-		    System.out.println("The exception thrown is: "+ J9UTF8Helper.stringValue(J9UTF8Pointer.cast(currentThrowName.get())));
 		    exceptions[i] = J9UTF8Helper.stringValue(J9UTF8Pointer.cast(currentThrowName.get()));
 		}
 	    }
@@ -343,10 +339,7 @@ public class ROMClassWrapper implements IBootstrapRunnable{
         while(ptr < bytecodeEnd){
 	    int offset = (int)(ptr - bytecodeSt);
 	    int opcode = (int)(src.getByte(ptr) & 0xFF);
-
-	    System.out.println("The opcode value is: "+ opcode);
-	    System.out.println("The opcode offset is: "+offset);
-
+	    
 	    //visit a label if there is one
 	    Label l = labels[offset];
 	    if(l != null){
@@ -404,8 +397,6 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 	    else if((opcode == BCNames.JBreturn1) ||
 		    (opcode == BCNames.JBreturn2)){
 		//return0,1,2 correspond to return(pop 0 slots), return(pop 1 slot) and return(pop 2 slots)
-		//we can almost deal with the last two as ireturn lreturn , but this may have a type problem
-		//TODO fix this...
 		opcode = getReturnType(returnType);
 		mv.visitInsn(opcode);
 		ptr += 1;
@@ -459,23 +450,13 @@ public class ROMClassWrapper implements IBootstrapRunnable{
                     (opcode == BCNames.JBastore2) ||
                     (opcode == BCNames.JBastore3)){
 		if (opcode > Opcodes.ISTORE) {
-		    System.out.println("Using this original opcodes: "+opcode);
+
 		    opcode -= 59; // ISTORE_0
-
-		    System.out.println("Using this opcode for the store insn: "+ (Opcodes.ISTORE + (opcode >> 2)));
-                    System.out.println("Using this var offset for the store insn: "+ (opcode & 0x3));
-
 		    mv.visitVarInsn(Opcodes.ISTORE + (opcode >> 2),
                             opcode & 0x3);
                 } else {
-
-		    System.out.println("Using this original opcodes: "+opcode);
 		    
-                    opcode -= 26; // ILOAD_0
-
-		    System.out.println("Using this opcode for the load insn: "+ (Opcodes.ILOAD + (opcode >> 2)));
-                    System.out.println("Using this var offset for the load insn: "+ (opcode & 0x3));
-		    
+		    opcode -= 26; 
                     mv.visitVarInsn(Opcodes.ILOAD + (opcode >> 2), opcode & 0x3);
                 }
 		ptr += 1;	
@@ -493,9 +474,6 @@ public class ROMClassWrapper implements IBootstrapRunnable{
                 J9ROMNameAndSignaturePointer nameAndSig = romFieldRef.nameAndSignature();
                 String name = J9UTF8Helper.stringValue(nameAndSig.name());
                 String desc = J9UTF8Helper.stringValue(nameAndSig.signature());
-		System.out.println("Using this owner class for the aload0getfield: "+owner);
-		System.out.println("Using this name for the aload0getfield: "+ name);
-		System.out.println("Using this  desc for the aload0getfield: "+ desc);
 		mv.visitFieldInsn(180, owner, name, desc);
 		ptr += 4;
 	    }
@@ -649,8 +627,6 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 		//since we are working with infoslots the order check is a bit ugly against the mem model, but must do
 		long constantvalue = (src.getByteOrder() == ByteOrder.BIG_ENDIAN) ? ((info.slot1().longValue()) << 32) | (info.slot2().longValue() & 0xffffffffL) : ((info.slot2().longValue()) << 32) | (info.slot1().longValue() & 0xffffffffL);
 
-		System.out.println("slto1 then 2: "+ info.slot1().longValue()+ " " +info.slot2().longValue());
-		System.out.println("ldc2lw value is: "+ constantvalue);
 		mv.visitLdcInsn(constantvalue);
                 ptr += 3;
             }
@@ -661,8 +637,7 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 
                 //since we are working with infoslots the order check is a bit ugly against the mem model, but must do
 		long constantvalue = (src.getByteOrder() == ByteOrder.BIG_ENDIAN) ? ((info.slot1().longValue()) << 32) | (info.slot2().longValue() & 0xffffffffL) : ((info.slot2().longValue()) << 32) | (info.slot1().longValue() & 0xffffffffL);
-                System.out.println("ldc2dw value is: "+  Double.longBitsToDouble(constantvalue));
-		mv.visitLdcInsn(Double.longBitsToDouble(constantvalue));
+                mv.visitLdcInsn(Double.longBitsToDouble(constantvalue));
                 ptr += 3;
 	    }
 	    else if((opcode == BCNames.JBgetstatic) ||
@@ -714,11 +689,7 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 		    ptr += 3;
 		    //}
 	    }
-
-	    //TODO finish aka get real rest of info for handle
 	    else if (opcode == BCNames.JBinvokedynamic) {
-
-		J9BCUtil.dumpCallSiteData(System.out, pointer);
 		
 		int index = src.getShort(ptr + 1);
 
@@ -729,14 +700,9 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 		J9ROMNameAndSignaturePointer invokedNameAndSig = J9ROMNameAndSignaturePointer.cast(callSiteData.add(index).get());
 		String invokedName = J9UTF8Helper.stringValue(invokedNameAndSig.name());
 		String invokedDesc = J9UTF8Helper.stringValue(invokedNameAndSig.signature());
-
-		System.out.println("ATTEMPT the invoked classname: "+ invokedName);
-		System.out.println("ATTEMPT the invoked desc: "+ invokedDesc);
 		
 		//gets a pointer to the exact entry in the callSiteData table to the bsm data of this invoked method
 		long bsmIndex = bsmIndices.at(index).longValue(); //Bootstrap method index
-
-		System.out.println("The bsm index is : "+ bsmIndex);
 
 		//get beginning of bsmData section, then the relevant entry
 		U16Pointer bsmDataCursor = bsmIndices.add(callSiteCount);
@@ -755,16 +721,6 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 		bsmDataCursor = bsmDataCursor.add(1);
 		J9ROMMethodRefPointer methodRef = J9ROMMethodRefPointer.cast(constantPool.add(methodHandleRef.methodOrFieldRefIndex().longValue()));
 
-		////
-		System.out.println("ATTEMPT read at cp index");
-		//this should give the methodhandleref for the method
-		readConst(bsmDataCursor.at(0).intValue(), constantPool);
-		//this **should** give the method name and description for the invoked method
-		readConst(methodHandleRef.methodOrFieldRefIndex().intValue(), constantPool);
-		//this **should** give the classname for the owner of the invoked method
-		readConst(methodRef.classRefCPIndex().intValue(), constantPool);
-		////
-
 		//callee
 		J9ROMNameAndSignaturePointer nameAndSig = methodRef.nameAndSignature();
 		String name = J9UTF8Helper.stringValue(nameAndSig.name());
@@ -781,13 +737,9 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 		Handle bsm = new Handle(methodType, owner, name, desc, false);
 		Object[] bsmArgs = new Object[(int)bsmArgCount];
 
-		System.out.println("The bootstrap method is: "+  name);
-		System.out.println("The bootstrap method owner is: "+owner);
 		//populate the invoked method args array
 		for (int i = 0; i < bsmArgCount; i++) {
 		    long argCPIndex = bsmDataCursor.at(0).longValue();
-		    //TODO check if this is handled correctly, actually may need refactor of readConst, not
-		    //sure if all types are going to be handled correctly, and if we need the cpShapeDesc actually
 		    bsmArgs[i] = readConst((int)argCPIndex, constantPool);
 		    bsmDataCursor = bsmDataCursor.add(1);
 		}
@@ -808,7 +760,6 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 		int index = src.getShort(ptr+1);
 		J9ROMConstantPoolItemPointer info = constantPool.add(index);
 		String classname = J9UTF8Helper.stringValue(J9ROMStringRefPointer.cast(info).utf8Data());
-		System.out.println("In the instanceof condition with this classname"+classname);
 		mv.visitTypeInsn(opcode, classname);
                 ptr += 3;
 	    }
@@ -832,8 +783,7 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 
 	//default is void return
 	int opcode = 177;
-	System.out.println("The return type is: " + returnType);
-
+	
 	switch(returnType){
 	case 'Z':
 	case 'B':
@@ -867,7 +817,6 @@ public class ROMClassWrapper implements IBootstrapRunnable{
             int offset = (int)(ptr - bytecodeSt);
             int opcode = (int)(src.getByte(ptr) & 0xFF);
 
-	     System.out.println("In findLabels, with opcode:"+opcode);
 	    if((opcode == BCNames.JBifeq) ||
 	       (opcode == BCNames.JBifne) ||
 	       (opcode == BCNames.JBiflt) ||
@@ -1020,7 +969,6 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 
     public void addLabel(Label[] labels, int labelIndex){
 	if(labels[labelIndex] == null){
-            System.out.println("Creating a new label at this label index: "+labelIndex);
             labels[labelIndex] = new Label();
         }
 	
@@ -1038,26 +986,20 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 	long shapeDesc = ConstantPoolHelpers.J9_CP_TYPE(cpShapeDescription, index);
 	CacheMemorySource src = this.cacheMem.getMemorySource();
 	
-	System.out.println("The index is: "+ index);
-	
 	J9ROMConstantPoolItemPointer item = constantPool.add(index);
 
 	if (shapeDesc == J9CPTYPE_CLASS) {
 	    J9ROMClassRefPointer romClassRef = J9ROMClassRefPointer.cast(item);
-	    System.out.println("      Class: " + J9UTF8Helper.stringValue(romClassRef.name()));
 	    return J9UTF8Helper.stringValue(romClassRef.name());
 	} else if (shapeDesc == J9CPTYPE_STRING) {
 	    J9ROMStringRefPointer romStringRef = J9ROMStringRefPointer.cast(item);
-	    System.out.println("      String: " + J9UTF8Helper.stringValue(romStringRef.utf8Data()));
 	    return J9UTF8Helper.stringValue(romStringRef.utf8Data());
 	} else if (shapeDesc == J9CPTYPE_INT) {
 	    J9ROMSingleSlotConstantRefPointer singleSlotConstantRef = J9ROMSingleSlotConstantRefPointer.cast(item);
-	    System.out.println("      Int: " + singleSlotConstantRef.data().getHexValue());
 	    return singleSlotConstantRef.data().longValue();
 	} else if (shapeDesc == J9CPTYPE_FLOAT) {
 	    J9ROMSingleSlotConstantRefPointer singleSlotConstantRef = J9ROMSingleSlotConstantRefPointer.cast(item);
 	    FloatPointer floatPtr = FloatPointer.cast(singleSlotConstantRef.dataEA());
-	    System.out.println("      Float: " + floatPtr.getHexValue() + " (" + floatPtr.floatAt(0) + ")");
 	    return floatPtr.floatAt(0);
 	} else if (shapeDesc == J9CPTYPE_LONG) {
 	    String hexValue = "";
@@ -1069,7 +1011,6 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 		hexValue += item.slot1().getHexValue().substring(2);
 	    }
 	    long longValue = Long.parseLong(hexValue.substring(2), HEX_RADIX);
-	    System.out.println("      Long: " + hexValue + "(" + longValue + ")");
 	    return longValue;
 	} else if (shapeDesc == J9CPTYPE_DOUBLE) {
 	    String hexValue = "";
@@ -1082,15 +1023,11 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 	    }
 	    long longValue = Long.parseLong(hexValue.substring(2), HEX_RADIX);
 	    double doubleValue = Double.longBitsToDouble(longValue);
-	    System.out.println("      Double: " + hexValue + "(" + Double.toString(doubleValue) + ")");
 	    return doubleValue;
 	} else if (shapeDesc == J9CPTYPE_FIELD) {
 	    J9ROMFieldRefPointer romFieldRef = J9ROMFieldRefPointer.cast(item);
 	    J9ROMClassRefPointer classRef = J9ROMClassRefPointer.cast(constantPool.add(romFieldRef.classRefCPIndex()));
 	    J9ROMNameAndSignaturePointer nameAndSig = romFieldRef.nameAndSignature();
-	    System.out.println("      Field: " + J9UTF8Helper.stringValue(classRef.name()) 
-			+ "." + J9UTF8Helper.stringValue(nameAndSig.name())
-			+ " " + J9UTF8Helper.stringValue(nameAndSig.signature()));
 	    //TODO check this
 	    return J9UTF8Helper.stringValue(nameAndSig.name());
 	} else if ((shapeDesc == J9CPTYPE_INSTANCE_METHOD)
@@ -1100,14 +1037,10 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 	    J9ROMMethodRefPointer romMethodRef = J9ROMMethodRefPointer.cast(item);
 	    J9ROMClassRefPointer classRef = J9ROMClassRefPointer.cast(constantPool.add(romMethodRef.classRefCPIndex()));
 	    J9ROMNameAndSignaturePointer nameAndSig = romMethodRef.nameAndSignature();
-	    System.out.println("      Method: " + J9UTF8Helper.stringValue(classRef.name())
-			+ "." + J9UTF8Helper.stringValue(nameAndSig.name())
-			+ " " + J9UTF8Helper.stringValue(nameAndSig.signature()));
 	    //TODO check this
 	    return J9UTF8Helper.stringValue(nameAndSig.name());
 	} else if (shapeDesc == J9CPTYPE_METHOD_TYPE) {
 	    J9ROMMethodTypeRefPointer romMethodTypeRef = J9ROMMethodTypeRefPointer.cast(item);
-	    System.out.println("      Method Type: " + J9UTF8Helper.stringValue(J9UTF8Pointer.cast(romMethodTypeRef.signature())));
 	    return Type.getType(J9UTF8Helper.stringValue(J9UTF8Pointer.cast(romMethodTypeRef.signature())));
 	} else if (shapeDesc == J9CPTYPE_METHODHANDLE) {
 	    J9ROMMethodHandleRefPointer methodHandleRef = J9ROMMethodHandleRefPointer.cast(item);
@@ -1117,8 +1050,6 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 	    String owner = J9UTF8Helper.stringValue(classRef.name());
 	    String name = J9UTF8Helper.stringValue(nameAndSig.name());
 	    String signature = J9UTF8Helper.stringValue(nameAndSig.signature());
-
-	    System.out.print("      Method Handle: " + owner + "." + name);
 
 	    //for once, asm and romclass constants are fully aligned
 	    //https://gitlab.ow2.org/asm/asm/blob/ASM_5_2/src/org/objectweb/asm/Opcodes.java#L101
