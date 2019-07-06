@@ -4,7 +4,7 @@ package soot.asm;
  * #%L
  * Soot - a J*va Optimization Framework
  * %%
- * Copyright (C) 2018 Kristen Newbury
+ * Copyright (C) 2019 Kristen Newbury
  * %%
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as
@@ -91,7 +91,6 @@ public class CacheClassProvider implements ClassProvider {
 	//not sure if this is needed, think probably not?
 	helper.confirmAllEntries();
 	
-	System.out.println("THIS IS CACHE START");
 	try {
 	    //for now this part happens every time
 	    //maybe consider avoiding that later 
@@ -111,11 +110,8 @@ public class CacheClassProvider implements ClassProvider {
 
 	//is this actually the format of what needs to be provided here? should it be just classname or full url to classfile?
 	romCookie = helper.findSharedClass(cls, null);
-	System.out.println(cls);
 	if (romCookie == null) {
-	    System.out.println("Cannot find class in cache.");
-	}else{
-  	    System.out.println("Found the method!");
+	    System.out.println("Cannot find class in cache: "+ cls);
 	}
     }
     return romCookie == null ? null : new CacheClassSource(cls, romCookie, cacheMem, wrapper.getLong(), wrapper.getInt());
