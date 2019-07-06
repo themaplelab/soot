@@ -25,17 +25,14 @@ package soot.asm;
 import soot.ClassProvider;
 import soot.ClassSource;
 import soot.FoundFile;
-import soot.SourceLocator;
+
 import com.ibm.oti.shared.Shared;
 import com.ibm.oti.shared.SharedClassHelperFactory;
 import com.ibm.oti.shared.SharedClassURLClasspathHelper;
+import com.ibm.oti.shared.HelperAlreadyDefinedException;
 
 import java.net.URLClassLoader;
 import java.net.URL;
-import java.io.File;
-import java.util.Arrays;
-
-import com.ibm.oti.shared.HelperAlreadyDefinedException;
 import java.net.MalformedURLException;
 
 import java.nio.ByteBuffer;
