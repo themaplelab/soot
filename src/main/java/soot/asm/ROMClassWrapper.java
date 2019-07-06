@@ -35,6 +35,7 @@ import com.ibm.j9ddr.vm29.pointer.generated.J9ROMStaticFieldShapePointer;
 import com.ibm.j9ddr.vm29.pointer.helper.J9ROMFieldShapeHelper;
 import com.ibm.j9ddr.vm29.j9.ConstantPoolHelpers;
 import com.ibm.j9ddr.vm29.pointer.generated.J9ROMMethodTypeRefPointer;
+import com.ibm.j9ddr.vm29.pointer.generated.J9ExceptionInfoPointer;
 
 import com.ibm.j9ddr.vm29.types.UDATA;
 import com.ibm.j9ddr.vm29.types.U8;
@@ -249,12 +250,33 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 	    returnType = signature.charAt(signature.lastIndexOf(")") + 2);
 	}
 	System.out.println("the st and end of the bytes: " + bytecodeSt+"and "+bytecodeEnd);
+	String[] exceptions = getExceptions(romMethod);
 	//visitMethod(int access, String name, String desc, String signature, String[] exceptions)              
-	MethodVisitor mv = classVisitor.visitMethod(methodModifiers, name, signature, signature, new String[] {});
+	MethodVisitor mv = classVisitor.visitMethod(methodModifiers, name, signature, signature, exceptions);
 	readMethodBody(bytecodeSt, bytecodeEnd, mv, constantPool, returnType);
 	//for now
         mv.visitMaxs(maxStack, maxLocals);
 	mv.visitEnd();
+    }
+
+    String[] getExceptions(J9ROMMethodPointer romMethod) throws CorruptDataException{
+
+	if (J9ROMMethodHelper.hasExceptionInfo(romMethod)) {
+
+	    J9ExceptionInfoPointer exceptionData = ROMHelp.J9_EXCEPTION_DATA_FROM_ROM_METHOD(romMethod);
+	    long throwCount = exceptionData.throwCount().longValue();
+	    String[] exceptions = new String[(int)throwCount];
+	    
+	    if(throwCount > 0){
+		SelfRelativePointer currentThrowName = ROMHelp.J9EXCEPTIONINFO_THROWNAMES(exceptionData);
+		for(int i = 0; i < throwCount; i++){
+		    System.out.println("The exception thrown is: "+ J9UTF8Helper.stringValue(J9UTF8Pointer.cast(currentThrowName.get())));
+		    exceptions[i] = J9UTF8Helper.stringValue(J9UTF8Pointer.cast(currentThrowName.get()));
+		}
+	    }
+	    return exceptions;
+	}
+	return new String[] {};
     }
     
     Object getStaticFieldValue(UDATA modsFull, J9ROMStaticFieldShapePointer field , J9ROMConstantPoolItemPointer constantPool) throws CorruptDataException{
