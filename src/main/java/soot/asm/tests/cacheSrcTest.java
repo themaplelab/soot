@@ -68,7 +68,11 @@ public class cacheSrcTest{
 	for(int i=0; i<testsToRun.length; i++){
 
 	    switch(testsToRun[i]){
-
+	    case "InvokeDynamicTest":
+		InvokeDynamicTest.genExampleInput(visitor);
+                genExampleClassfile("InvokeDynamicTest", visitor);
+                runSoot("InvokeDynamicTest");
+                break;
 	    case "LDCTest":
 		LDCTest.genExampleInput(visitor);
                 genExampleClassfile("LDCTest", visitor);
@@ -283,7 +287,7 @@ public class cacheSrcTest{
 
 	String fulltestname = testclassname + "Generated";
 	//-allow-phantom-refs so that only? this file will be handled, dont care about rest
-	String[] commandLine = { "-pp", "-cp", testDir.getAbsolutePath() +":/root/soot/src/main/java", "-allow-phantom-refs", "-f", "J", "-d", testDir.toString(), fulltestname};
+	String[] commandLine = { "-pp", "-cp", testDir.getAbsolutePath() +":/root/soot/src/main/java", "-allow-phantom-refs", "-src-prec", "c", "-f", "J", "-d", testDir.toString(), fulltestname};
 
 	System.out.println("Running test for: "+ fulltestname);
 	System.out.println("Command Line: " + Arrays.toString(commandLine));
