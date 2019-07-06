@@ -23,7 +23,7 @@ package soot.asm;
  */
 
 import java.nio.ByteOrder;
-import com.ibm.j9ddr.corereaders.memory.MemoryFault;
+
 import com.ibm.j9ddr.tools.ddrinteractive.CacheMemory;
 import com.ibm.j9ddr.tools.ddrinteractive.CacheMemorySource;
 
