@@ -21,28 +21,28 @@
  *******************************************************************************/
 package com.ibm.j9ddr.vm29;
 
-import com.ibm.j9ddr.vm29.j9.BCNames;
+import com.ibm.j9ddr.tools.ddrinteractive.CacheMemorySource;
+import com.ibm.j9ddr.tools.ddrinteractive.CacheMemory;
 
 import com.ibm.j9ddr.CorruptDataException;
 import com.ibm.j9ddr.InvalidDataTypeException;
-import com.ibm.j9ddr.NullPointerDereference;
 import com.ibm.j9ddr.IBootstrapRunnable;
 import com.ibm.j9ddr.IVMData;
-import com.ibm.j9ddr.vm29.pointer.generated.J9ROMClassPointer;
-import com.ibm.j9ddr.vm29.pointer.generated.J9UTF8Pointer;
-import com.ibm.j9ddr.vm29.pointer.helper.J9UTF8Helper;
-import com.ibm.j9ddr.vm29.j9.ROMHelp;
-import com.ibm.j9ddr.vm29.pointer.generated.J9ROMMethodPointer;
 
-import com.ibm.j9ddr.vm29.j9.DataType;
-import com.ibm.j9ddr.vm29.pointer.generated.J9JavaVMPointer;
-import com.ibm.j9ddr.vm29.pointer.helper.J9RASHelper;
-import com.ibm.j9ddr.vm29.pointer.generated.J9SharedClassConfigPointer;
-import com.ibm.j9ddr.vm29.pointer.generated.J9SharedClassCacheDescriptorPointer;
-import com.ibm.j9ddr.vm29.pointer.generated.J9ROMNameAndSignaturePointer;
-import com.ibm.j9ddr.vm29.pointer.helper.J9MethodHelper;
+import com.ibm.j9ddr.vm29.j9.ROMHelp;
+import com.ibm.j9ddr.vm29.j9.J9ROMFieldShapeIterator;
+import com.ibm.j9ddr.vm29.j9.BCNames;
+import com.ibm.j9ddr.vm29.j9.ConstantPoolHelpers;
+
+import com.ibm.j9ddr.vm29.pointer.helper.J9UTF8Helper;
 import com.ibm.j9ddr.vm29.pointer.helper.J9ROMClassHelper;
 import com.ibm.j9ddr.vm29.pointer.helper.J9ROMMethodHelper;
+import com.ibm.j9ddr.vm29.pointer.helper.J9ROMFieldShapeHelper;
+
+import com.ibm.j9ddr.vm29.pointer.generated.J9ROMClassPointer;
+import com.ibm.j9ddr.vm29.pointer.generated.J9UTF8Pointer;
+import com.ibm.j9ddr.vm29.pointer.generated.J9ROMMethodPointer;
+import com.ibm.j9ddr.vm29.pointer.generated.J9ROMNameAndSignaturePointer;
 import com.ibm.j9ddr.vm29.pointer.generated.J9ROMConstantPoolItemPointer;
 import com.ibm.j9ddr.vm29.pointer.generated.J9ROMSingleSlotConstantRefPointer;
 import com.ibm.j9ddr.vm29.pointer.generated.J9ROMStringRefPointer;
@@ -50,23 +50,20 @@ import com.ibm.j9ddr.vm29.pointer.generated.J9ROMFieldRefPointer;
 import com.ibm.j9ddr.vm29.pointer.generated.J9ROMMethodRefPointer;
 import com.ibm.j9ddr.vm29.pointer.generated.J9ROMClassRefPointer;
 import com.ibm.j9ddr.vm29.pointer.generated.J9ROMMethodHandleRefPointer;
-import com.ibm.j9ddr.vm29.j9.J9ROMFieldShapeIterator;
 import com.ibm.j9ddr.vm29.pointer.generated.J9ROMFieldShapePointer;
 import com.ibm.j9ddr.vm29.pointer.generated.J9ROMStaticFieldShapePointer;
-import com.ibm.j9ddr.vm29.pointer.helper.J9ROMFieldShapeHelper;
-import com.ibm.j9ddr.vm29.j9.ConstantPoolHelpers;
 import com.ibm.j9ddr.vm29.pointer.generated.J9ROMMethodTypeRefPointer;
 import com.ibm.j9ddr.vm29.pointer.generated.J9ExceptionInfoPointer;
 
-import com.ibm.j9ddr.vm29.types.UDATA;
-import com.ibm.j9ddr.vm29.types.U8;
 import com.ibm.j9ddr.vm29.pointer.I64Pointer;
 import com.ibm.j9ddr.vm29.pointer.U16Pointer;
 import com.ibm.j9ddr.vm29.pointer.U32Pointer;
 import com.ibm.j9ddr.vm29.pointer.SelfRelativePointer;
 import com.ibm.j9ddr.vm29.pointer.FloatPointer;
 
-import org.objectweb.asm.ClassWriter;
+import com.ibm.j9ddr.vm29.types.UDATA;
+import com.ibm.j9ddr.vm29.types.U8;
+
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.ClassVisitor;
@@ -76,22 +73,11 @@ import org.objectweb.asm.Label;
 import org.objectweb.asm.Handle;
 import org.objectweb.asm.Type;
 
-import com.ibm.j9ddr.tools.ddrinteractive.CacheMemorySource;
-import com.ibm.j9ddr.tools.ddrinteractive.CacheMemory;
-
-import java.io.ByteArrayInputStream;
-import java.io.InputStream;
 import java.nio.ByteOrder;
 
-//this organization is not great, later we can refactor
-//its too entangled with soot atm
 import soot.javaToJimple.IInitialResolver.Dependencies;
-import soot.SootClass;
-import soot.asm.CacheClassSource;
 import soot.asm.SootClassBuilder;
 import soot.asm.CacheMemorySingleton;
-
-import com.ibm.j9ddr.vm29.tools.ddrinteractive.commands.J9BCUtil;
 
 /*                                                                                                                          
  * This implementation strongly relies upon the visitor invoke pattern defined in ASM Classreader:                                                             
