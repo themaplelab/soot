@@ -33,7 +33,8 @@ import com.ibm.j9ddr.vm29.j9.J9ROMFieldShapeIterator;
 import com.ibm.j9ddr.vm29.pointer.generated.J9ROMFieldShapePointer;
 import com.ibm.j9ddr.vm29.pointer.generated.J9ROMStaticFieldShapePointer;
 import com.ibm.j9ddr.vm29.pointer.helper.J9ROMFieldShapeHelper;
-
+import com.ibm.j9ddr.vm29.j9.ConstantPoolHelpers;
+import com.ibm.j9ddr.vm29.pointer.generated.J9ROMMethodTypeRefPointer;
 
 import com.ibm.j9ddr.vm29.types.UDATA;
 import com.ibm.j9ddr.vm29.types.U8;
@@ -41,6 +42,7 @@ import com.ibm.j9ddr.vm29.pointer.I64Pointer;
 import com.ibm.j9ddr.vm29.pointer.U16Pointer;
 import com.ibm.j9ddr.vm29.pointer.U32Pointer;
 import com.ibm.j9ddr.vm29.pointer.SelfRelativePointer;
+import com.ibm.j9ddr.vm29.pointer.FloatPointer;
 
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.ClassReader;
@@ -50,6 +52,7 @@ import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.FieldVisitor;
 import org.objectweb.asm.Label;
 import org.objectweb.asm.Handle;
+import org.objectweb.asm.Type;
 
 import com.ibm.j9ddr.tools.ddrinteractive.CacheMemorySource;
 import com.ibm.j9ddr.tools.ddrinteractive.CacheMemory;
@@ -66,6 +69,8 @@ import soot.asm.CacheClassSource;
 import soot.asm.SootClassBuilder;
 import soot.asm.CacheMemorySingleton;
 
+import com.ibm.j9ddr.vm29.tools.ddrinteractive.commands.J9BCUtil;
+
 /*                                                                                                                          
  * This implementation strongly relies upon the visitor invoke pattern defined in ASM Classreader:                                                             
  * https://gitlab.ow2.org/asm/asm/blob/ASM_5_2/src/org/objectweb/asm/ClassReader.java                                       
@@ -77,16 +82,29 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 
     //TODO fix. currently stolen hardcode from https://github.com/eclipse/openj9/blob/v0.14.0-release/runtime/oti/j9nonbuilder.h#L1965
     //the reason is that these are only defined in: com.ibm.j9ddr.vm29.structure.J9BCTranslationData
-    //and only sizeof is exposed in: emacs openj9/debugtools/DDR_VM/src/com/ibm/j9ddr/vm29/pointer/generated/J9DescriptionBitsPointer.java
+    //and only sizeof is exposed in: openj9/debugtools/DDR_VM/src/com/ibm/j9ddr/vm29/pointer/generated/J9DescriptionBitsPointer.java
     //though somehow bytecode dumper can use ... https://github.com/eclipse/openj9/blob/v0.14.0-release/debugtools/DDR_VM/src/com/ibm/j9ddr/vm29/tools/ddrinteractive/commands/ByteCodeDumper.java#L96
+    //but we are using the structure file, not a loaded class... so this may be the reason...
     
     private int BCT_J9DescriptionCpTypeScalar  = 0;
     private int BCT_J9DescriptionCpTypeObject = 1;
     private int BCT_J9DescriptionCpTypeClass  = 2;
-
     private int J9DescriptionCpTypeShift = 4;
-
     private int J9AccStatic = 8;
+
+    private int J9CPTYPE_CLASS  = 1;
+    private int J9CPTYPE_STRING = 2;
+    private int J9CPTYPE_INT  = 3;
+    private int J9CPTYPE_FLOAT  = 4;
+    private int J9CPTYPE_LONG  = 5;
+    private int J9CPTYPE_DOUBLE  = 6;
+    private int J9CPTYPE_FIELD  = 7;
+    private int J9CPTYPE_INSTANCE_METHOD = 9;
+    private int J9CPTYPE_STATIC_METHOD = 10;
+    private int J9CPTYPE_HANDLE_METHOD = 11;
+    private int J9CPTYPE_INTERFACE_METHOD = 12;
+    private int J9CPTYPE_METHOD_TYPE  = 13;
+    private int J9CPTYPE_METHODHANDLE  = 14;
 
     //J9FieldFlagConstant 0x400000
     //J9FieldTypeDouble 0x180000
@@ -257,6 +275,7 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 	    CacheMemorySource src = this.cacheMem.getMemorySource();
 	    long first = I64Pointer.cast(field.add(1)).at(0).longValue();
 	    long second = I64Pointer.cast(field.add(2)).at(0).longValue();
+	    //This is honestly the opposite of what we expect it to be, completely unsure of why
 	    long constantvalue = (src.getByteOrder() == ByteOrder.BIG_ENDIAN) ? (second << 32) | (first & 0xffffffffL) : (first << 32) | (second & 0xffffffffL);
 	    
             return new Double(Double.longBitsToDouble(constantvalue));
@@ -676,37 +695,61 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 
 	    //TODO finish aka get real rest of info for handle
 	    else if (opcode == BCNames.JBinvokedynamic) {
-	
+
+		J9BCUtil.dumpCallSiteData(System.out, pointer);
+		
 		int index = src.getShort(ptr + 1);
 
 		long callSiteCount = pointer.callSiteCount().longValue();
 		SelfRelativePointer callSiteData = SelfRelativePointer.cast(pointer.callSiteData());
 		U16Pointer bsmIndices = U16Pointer.cast(callSiteData.addOffset(4*callSiteCount));
 
-		//just a check for now about who the caller(s) are, not really needed for reader
-		//TODO rm
-		for(int i =0; i < callSiteCount; i++){
-		    J9ROMNameAndSignaturePointer callerNameAndSig = J9ROMNameAndSignaturePointer.cast(callSiteData.add(i).get());
-		    String callername = J9UTF8Helper.stringValue(callerNameAndSig.name());
-		    String callerdesc = J9UTF8Helper.stringValue(callerNameAndSig.signature());
-		    System.out.println("The caller name: " + callername +" and signature: " + callerdesc);
-		}
+		J9ROMNameAndSignaturePointer invokedNameAndSig = J9ROMNameAndSignaturePointer.cast(callSiteData.add(index).get());
+		String invokedName = J9UTF8Helper.stringValue(invokedNameAndSig.name());
+		String invokedDesc = J9UTF8Helper.stringValue(invokedNameAndSig.signature());
 
+		System.out.println("ATTEMPT the invoked classname: "+ invokedName);
+		System.out.println("ATTEMPT the invoked desc: "+ invokedDesc);
+		
 		//gets a pointer to the exact entry in the callSiteData table to the bsm data of this invoked method
-		int bsmIndex = bsmIndices.at(index).intValue(); //Bootstrap method index
+		long bsmIndex = bsmIndices.at(index).longValue(); //Bootstrap method index
+
+		System.out.println("The bsm index is : "+ bsmIndex);
+
+		//get beginning of bsmData section, then the relevant entry
 		U16Pointer bsmDataCursor = bsmIndices.add(callSiteCount);
-		bsmDataCursor = bsmDataCursor.add(bsmIndex);
+		int currentBsmDataItem = 0;
+		//need to traverse to the point in the bootStrapMethodData array where this bsmIndex
+		//refers to, problem is that these are variable length since the contain unknown number args each
+		while(currentBsmDataItem != bsmIndex){
+		    //skip methodhandleref right off, just need to read num args
+		    long bsmArgumentCount = bsmDataCursor.at(1).longValue();
+		    bsmDataCursor = bsmDataCursor.add(2+bsmArgumentCount);
+		    currentBsmDataItem+=1;
+		}
 		
 		J9ROMMethodHandleRefPointer methodHandleRef = J9ROMMethodHandleRefPointer.cast(constantPool.add(bsmDataCursor.at(0).longValue()));
+		
+		bsmDataCursor = bsmDataCursor.add(1);
 		J9ROMMethodRefPointer methodRef = J9ROMMethodRefPointer.cast(constantPool.add(methodHandleRef.methodOrFieldRefIndex().longValue()));
+
+		////
+		System.out.println("ATTEMPT read at cp index");
+		//this should give the methodhandleref for the method
+		readConst(bsmDataCursor.at(0).intValue(), constantPool);
+		//this **should** give the method name and description for the invoked method
+		readConst(methodHandleRef.methodOrFieldRefIndex().intValue(), constantPool);
+		//this **should** give the classname for the owner of the invoked method
+		readConst(methodRef.classRefCPIndex().intValue(), constantPool);
+		////
 
 		//callee
 		J9ROMNameAndSignaturePointer nameAndSig = methodRef.nameAndSignature();
 		String name = J9UTF8Helper.stringValue(nameAndSig.name());
 		String desc = J9UTF8Helper.stringValue(nameAndSig.signature());
 		
-		int bsmArgCount = bsmDataCursor.at(1).intValue();
-		bsmDataCursor = bsmDataCursor.add(2);
+		long bsmArgCount = bsmDataCursor.at(0).longValue();
+		bsmDataCursor = bsmDataCursor.add(1);
 
 		//map this info into the asm understanding of a handle
 	        int methodType = methodHandleRef.handleTypeAndCpType().rightShift((int)J9DescriptionCpTypeShift).intValue();
@@ -714,19 +757,21 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 		String owner = J9UTF8Helper.stringValue(classRef.name());
 		//public Handle(int tag, String owner, String name, String desc, boolean itf)
 		Handle bsm = new Handle(methodType, owner, name, desc, false);
-		Object[] bsmArgs = new Object[bsmArgCount];
+		Object[] bsmArgs = new Object[(int)bsmArgCount];
 
+		System.out.println("The bootstrap method is: "+  name);
+		System.out.println("The bootstrap method owner is: "+owner);
 		//populate the invoked method args array
 		for (int i = 0; i < bsmArgCount; i++) {
-		    int argCPIndex = bsmDataCursor.at(0).intValue();
+		    long argCPIndex = bsmDataCursor.at(0).longValue();
 		    //TODO check if this is handled correctly, actually may need refactor of readConst, not
 		    //sure if all types are going to be handled correctly, and if we need the cpShapeDesc actually
-		    bsmArgs[i] = readConst(argCPIndex, constantPool);
+		    bsmArgs[i] = readConst((int)argCPIndex, constantPool);
 		    bsmDataCursor = bsmDataCursor.add(1);
 		}
 
 		//how is providing name+desc not redundant with the bsm handle also haing those...
-		mv.visitInvokeDynamicInsn(name, desc, bsm, bsmArgs);
+		mv.visitInvokeDynamicInsn(invokedName, invokedDesc, bsm, bsmArgs);
 		ptr += 5;
 	    }	
 	    else if((opcode == BCNames.JBnewdup) ||
@@ -966,23 +1011,107 @@ public class ROMClassWrapper implements IBootstrapRunnable{
     
     public Object readConst(final int index, J9ROMConstantPoolItemPointer constantPool) throws CorruptDataException{
 
+	int HEX_RADIX = 16;
+	U32Pointer cpShapeDescription = J9ROMClassHelper.cpShapeDescription(pointer);
+	long shapeDesc = ConstantPoolHelpers.J9_CP_TYPE(cpShapeDescription, index);
+	CacheMemorySource src = this.cacheMem.getMemorySource();
+	
 	System.out.println("The index is: "+ index);
 	
-	J9ROMConstantPoolItemPointer info = constantPool.add(index);
-	J9ROMSingleSlotConstantRefPointer romSingleSlotConstantRef = J9ROMSingleSlotConstantRefPointer.cast(info);
+	J9ROMConstantPoolItemPointer item = constantPool.add(index);
 
-	if (!romSingleSlotConstantRef.cpType().eq(BCT_J9DescriptionCpTypeScalar)) {
-	    /* this is a string or class constant */
-	    //TODO check if this handles class internal name as well
-	    System.out.println("Constant pool str condition" + romSingleSlotConstantRef.cpType());
-	    System.out.println("Constant pool str" + J9UTF8Helper.stringValue(J9ROMStringRefPointer.cast(info).utf8Data()));
-	    return J9UTF8Helper.stringValue(J9ROMStringRefPointer.cast(info).utf8Data());
-	    
-	}else {
-	    /* this is a float/int constant */
-	    System.out.println("Constant pool int/float condition" + romSingleSlotConstantRef.cpType());
-	    System.out.println("Constant pool int: "+ romSingleSlotConstantRef.data().longValue());
-		return romSingleSlotConstantRef.data().longValue();	    
+	if (shapeDesc == J9CPTYPE_CLASS) {
+	    J9ROMClassRefPointer romClassRef = J9ROMClassRefPointer.cast(item);
+	    System.out.println("      Class: " + J9UTF8Helper.stringValue(romClassRef.name()));
+	    return J9UTF8Helper.stringValue(romClassRef.name());
+	} else if (shapeDesc == J9CPTYPE_STRING) {
+	    J9ROMStringRefPointer romStringRef = J9ROMStringRefPointer.cast(item);
+	    System.out.println("      String: " + J9UTF8Helper.stringValue(romStringRef.utf8Data()));
+	    return J9UTF8Helper.stringValue(romStringRef.utf8Data());
+	} else if (shapeDesc == J9CPTYPE_INT) {
+	    J9ROMSingleSlotConstantRefPointer singleSlotConstantRef = J9ROMSingleSlotConstantRefPointer.cast(item);
+	    System.out.println("      Int: " + singleSlotConstantRef.data().getHexValue());
+	    return singleSlotConstantRef.data().longValue();
+	} else if (shapeDesc == J9CPTYPE_FLOAT) {
+	    J9ROMSingleSlotConstantRefPointer singleSlotConstantRef = J9ROMSingleSlotConstantRefPointer.cast(item);
+	    FloatPointer floatPtr = FloatPointer.cast(singleSlotConstantRef.dataEA());
+	    System.out.println("      Float: " + floatPtr.getHexValue() + " (" + floatPtr.floatAt(0) + ")");
+	    return floatPtr.floatAt(0);
+	} else if (shapeDesc == J9CPTYPE_LONG) {
+	    String hexValue = "";
+	    if (src.getByteOrder() == ByteOrder.BIG_ENDIAN) {
+		hexValue += item.slot1().getHexValue();
+		hexValue += item.slot2().getHexValue().substring(2);
+	    } else {
+		hexValue += item.slot2().getHexValue();
+		hexValue += item.slot1().getHexValue().substring(2);
+	    }
+	    long longValue = Long.parseLong(hexValue.substring(2), HEX_RADIX);
+	    System.out.println("      Long: " + hexValue + "(" + longValue + ")");
+	    return longValue;
+	} else if (shapeDesc == J9CPTYPE_DOUBLE) {
+	    String hexValue = "";
+	    if (src.getByteOrder() == ByteOrder.BIG_ENDIAN) {
+		hexValue += item.slot1().getHexValue();
+                hexValue += item.slot2().getHexValue().substring(2);
+	    } else {
+		hexValue += item.slot2().getHexValue();
+                hexValue += item.slot1().getHexValue().substring(2);
+	    }
+	    long longValue = Long.parseLong(hexValue.substring(2), HEX_RADIX);
+	    double doubleValue = Double.longBitsToDouble(longValue);
+	    System.out.println("      Double: " + hexValue + "(" + Double.toString(doubleValue) + ")");
+	    return doubleValue;
+	} else if (shapeDesc == J9CPTYPE_FIELD) {
+	    J9ROMFieldRefPointer romFieldRef = J9ROMFieldRefPointer.cast(item);
+	    J9ROMClassRefPointer classRef = J9ROMClassRefPointer.cast(constantPool.add(romFieldRef.classRefCPIndex()));
+	    J9ROMNameAndSignaturePointer nameAndSig = romFieldRef.nameAndSignature();
+	    System.out.println("      Field: " + J9UTF8Helper.stringValue(classRef.name()) 
+			+ "." + J9UTF8Helper.stringValue(nameAndSig.name())
+			+ " " + J9UTF8Helper.stringValue(nameAndSig.signature()));
+	    //TODO check this
+	    return J9UTF8Helper.stringValue(nameAndSig.name());
+	} else if ((shapeDesc == J9CPTYPE_INSTANCE_METHOD)
+		   || (shapeDesc == J9CPTYPE_STATIC_METHOD)
+		   || (shapeDesc == J9CPTYPE_HANDLE_METHOD)
+		   || (shapeDesc == J9CPTYPE_INTERFACE_METHOD)) {
+	    J9ROMMethodRefPointer romMethodRef = J9ROMMethodRefPointer.cast(item);
+	    J9ROMClassRefPointer classRef = J9ROMClassRefPointer.cast(constantPool.add(romMethodRef.classRefCPIndex()));
+	    J9ROMNameAndSignaturePointer nameAndSig = romMethodRef.nameAndSignature();
+	    System.out.println("      Method: " + J9UTF8Helper.stringValue(classRef.name())
+			+ "." + J9UTF8Helper.stringValue(nameAndSig.name())
+			+ " " + J9UTF8Helper.stringValue(nameAndSig.signature()));
+	    //TODO check this
+	    return J9UTF8Helper.stringValue(nameAndSig.name());
+	} else if (shapeDesc == J9CPTYPE_METHOD_TYPE) {
+	    J9ROMMethodTypeRefPointer romMethodTypeRef = J9ROMMethodTypeRefPointer.cast(item);
+	    System.out.println("      Method Type: " + J9UTF8Helper.stringValue(J9UTF8Pointer.cast(romMethodTypeRef.signature())));
+	    return Type.getType(J9UTF8Helper.stringValue(J9UTF8Pointer.cast(romMethodTypeRef.signature())));
+	} else if (shapeDesc == J9CPTYPE_METHODHANDLE) {
+	    J9ROMMethodHandleRefPointer methodHandleRef = J9ROMMethodHandleRefPointer.cast(item);
+	    J9ROMMethodRefPointer methodRef = J9ROMMethodRefPointer.cast(constantPool.add(methodHandleRef.methodOrFieldRefIndex()));
+	    J9ROMClassRefPointer classRef = J9ROMClassRefPointer.cast(constantPool.add(methodRef.classRefCPIndex()));
+	    J9ROMNameAndSignaturePointer nameAndSig = methodRef.nameAndSignature();
+	    String owner = J9UTF8Helper.stringValue(classRef.name());
+	    String name = J9UTF8Helper.stringValue(nameAndSig.name());
+	    String signature = J9UTF8Helper.stringValue(nameAndSig.signature());
+
+	    System.out.print("      Method Handle: " + owner + "." + name);
+
+	    //for once, asm and romclass constants are fully aligned
+	    //https://gitlab.ow2.org/asm/asm/blob/ASM_5_2/src/org/objectweb/asm/Opcodes.java#L101
+	    //https://github.com/eclipse/openj9/blob/v0.14.0-release/runtime/oti/j9nonbuilder.h#L2165
+	    long methodType = methodHandleRef.handleTypeAndCpType().rightShift((int)J9DescriptionCpTypeShift).longValue();
+
+	    boolean itf = false;
+	    if (methodType == Opcodes.H_INVOKEINTERFACE){
+		itf = true;
+	    }
+	    //public Handle(int tag, String owner, String name, String desc, boolean itf)  
+	    return new Handle((int)methodType, owner, name , signature, itf);
+	} else {
+	    System.out.println("      <unknown type>");
+	    return null;
 	}
     }
     
