@@ -291,7 +291,7 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 	    
 	  /* by default, type is anything that can be read as an int, except for float */
 	   	if(mods == J9FieldTypeFloat){
-		    return new Float(Float.intBitsToFloat(field.initialValue().intValue()));
+		    return new Float(Float.intBitsToFloat((int)field.initialValue().longValue()));
 		}else if(mods == J9FieldTypeByte){
                     return new Byte(field.initialValue().byteValue());
 		}else{
