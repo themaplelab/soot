@@ -48,7 +48,7 @@ public class InvokeDynamicTest extends AbstractCacheSrcTest{
 		FieldVisitor fv;
 		MethodVisitor mv;
 
-		visitor.visit(Opcodes.V1_1, Opcodes.ACC_PUBLIC + Opcodes.ACC_SUPER,
+		visitor.visit(Opcodes.V1_8, Opcodes.ACC_PUBLIC + Opcodes.ACC_SUPER,
 			      "InvokeDynamicTestGenerated", null, "java/lang/Object", null);
 
 		visitor.visitSource("InvokeDynamic.java", null);
@@ -71,6 +71,16 @@ public class InvokeDynamicTest extends AbstractCacheSrcTest{
 						  "bootstrap", mt.toMethodDescriptorString());
 		    
 		    mv.visitInvokeDynamicInsn("plus", "(II)I", bootstrap, new Object[0]);
+
+
+		    mv.visitIntInsn(BIPUSH, 42);
+                    mv.visitIntInsn(BIPUSH, 24);
+
+		    Handle bootstrap0 = new Handle(Opcodes.H_INVOKESTATIC, "Test0",
+                                                  "bootstrap0", mt.toMethodDescriptorString());
+
+                    mv.visitInvokeDynamicInsn("minus", "(II)I", bootstrap0, new Object[0]);
+		    
 		    
 		    mv.visitMethodInsn(INVOKEVIRTUAL, "java/io/PrintStream", "println",
 				       "(I)V");
