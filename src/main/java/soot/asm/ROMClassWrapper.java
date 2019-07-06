@@ -75,7 +75,6 @@ import org.objectweb.asm.Type;
 
 import java.nio.ByteOrder;
 
-import soot.javaToJimple.IInitialResolver.Dependencies;
 import soot.asm.SootClassBuilder;
 import soot.asm.CacheMemorySingleton;
 
