@@ -4,7 +4,7 @@ package soot.asm;
  * #%L
  * Soot - a J*va Optimization Framework
  * %%
- * Copyright (C) 1997 - 2018 Kristen Newbury
+ * Copyright (C) 1997 - 2019 Kristen Newbury
  * %%
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as
@@ -105,11 +105,6 @@ public class CacheClassSource extends ClassSource {
   public Dependencies resolve(SootClass sc) {
     InputStream d = null;
     try{
-	System.out.println("Byte array contents: ");
-	System.out.println(Arrays.toString(cookiesource));
-	System.out.println("-------------");
-	System.out.write(cookiesource);
-	System.out.println("-------------");
 
 	//TODO replace index (24) into cookie with the runtime val for offset of romclass address
 	long addr = 0;
@@ -141,8 +136,6 @@ public class CacheClassSource extends ClassSource {
 
     void tryWithMemModel(long addr, SootClassBuilder scb){
 
-	System.out.println("We have a memory");
-	System.out.println(memory.getMemory());
 	IProcess proc = (IProcess)memory.getMemory();
 	try{
 	    //setup DDR - init datatype
@@ -155,24 +148,11 @@ public class CacheClassSource extends ClassSource {
 	    
 	    //can force our wrapper to be loaded by J9DDRClassLoader
 	    aVMData.bootstrap("com.ibm.j9ddr.vm29.ROMClassWrapper", new Object[] {addr, scb, memory});
-	    //	    deps = getReader(aVMData);
 
-	    
 	}catch(Exception e){
 	    System.out.println("Could not setup ddr"+ e.getMessage());
 	    e.printStackTrace(System.out);
 	}
 	
-    }
-
-    Dependencies getReader(IVMData aVMData) throws Exception{
-	J9DDRClassLoader ddrClassLoader = aVMData.getClassLoader();
-	Class<?> clazz = ddrClassLoader.loadClass("com.ibm.j9ddr.vm29.ROMClassWrapper");
-
-	//trial for something
-	Method getDependenciesMethod = clazz.getDeclaredMethod("getDependencies", null);
-	Dependencies deps = (Dependencies)getDependenciesMethod.invoke(null);
-	
-	return deps;
     }
 }
