@@ -636,7 +636,6 @@
                     the Soot classpath. Fall back to <tt>.class</tt> and then <tt>.jimple</tt> files                                                                                 
                     only when unable to find a class in the cache.                                                                                        
                 </long_desc>
-                <default/>
             </value>
 	    <value>
                 <name>Only Cache Source</name>
