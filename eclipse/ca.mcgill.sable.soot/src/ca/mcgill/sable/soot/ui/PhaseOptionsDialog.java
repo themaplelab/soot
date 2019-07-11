@@ -1199,7 +1199,6 @@ public class PhaseOptionsDialog extends AbstractOptionsDialog implements Selecti
 			getConfig().put(getInput_Optionsmain_class_widget().getAlias(), stringRes);
 		}
 		stringRes = getInput_Optionssrc_prec_widget().getSelectedAlias();
-		defStringRes = "cache";
 		defStringRes = "c class";
 
 		if (!stringRes.equals(defStringRes)) {
@@ -8704,7 +8703,11 @@ public class PhaseOptionsDialog extends AbstractOptionsDialog implements Selecti
 				new OptionData("Cache",
 						"cache",
 						"\nTry to resolve classes first from the shared class cache found \nin the Soot classpath. Fall back to .class and then .jimple \nfiles only when unable to find a class in the cache.",
-						true),
+						false),
+				new OptionData("Only Cache Source",
+						"only-cache",
+						"\nTry to resolve classes first from the shared class cache found \nin \ the Soot classpath. Do not try any other types of files \neven when unable to find a class in the cache.",
+						false),
 				new OptionData("Class File",
 						"c class",
 						"\nTry to resolve classes first from .class files found in the Soot \nclasspath. Fall back to .jimple files only when unable to find a \n.class file.",
