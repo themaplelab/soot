@@ -52,9 +52,7 @@ public class CacheClassProvider implements ClassProvider {
     ByteBuffer wrapper = null;
     
     SharedClassHelperFactory factory = Shared.getSharedClassHelperFactory();
-    if (factory == null) {
-	System.err.print("Cannot return cache access factory.");
-    }else{
+    if (factory != null) {
 	URL[] urls = null;
 	URL url = null;
 	URL testurl = null;
@@ -66,11 +64,11 @@ public class CacheClassProvider implements ClassProvider {
 	    //use absolute path to classfile that we are trying to find class of
 	    rturl = new URL("file:///root/openj9-openjdk-jdk8/build/linux-x86_64-normal-server-release/images/j2sdk-image/jre/lib/rt.jar");
 	    Panathonurl = new URL("file:///root/PanathonExampleMaterials/exBin/");
-	    url = new URL("file:///root/soot/tests/");
+	    //	    url = new URL("file:///root/soot/tests/");
 	    //hackish
-	    testurl = new URL("file:///root/soot/cacheTestClassfiles/");
-	    urls = new URL[]{rturl, url, Panathonurl, testurl};
-	    //urls = new URL[]{url, Panathonurl, testurl}; 
+	    //testurl = new URL("file:///root/soot/cacheTestClassfiles/");
+	    //urls = new URL[]{rturl, url, Panathonurl, testurl};
+	    urls = new URL[]{rturl, Panathonurl}; 
 	}catch (MalformedURLException e) {
 	    System.out.println("Bad URL provided");
 	    e.printStackTrace();
@@ -109,7 +107,13 @@ public class CacheClassProvider implements ClassProvider {
 	romCookie = helper.findSharedClass(cls, null);
 	if (romCookie == null) {
 	    System.out.println("Cannot find class in cache: "+ cls);
+	}else{
+	    System.out.println("Located the class in the cache: "+ cls);
 	}
+	
+    }else{
+	System.out.println("Cache helper null, cannot find class in cache: "+ cls);
+	System.out.println("Is Shared Class Cache enabled on command line?");
     }
     return romCookie == null ? null : new CacheClassSource(cls, romCookie, cacheMem, wrapper.getLong(), wrapper.getInt());
   }

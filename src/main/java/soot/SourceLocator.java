@@ -233,20 +233,24 @@ public class SourceLocator {
     ClassProvider classFileClassProvider = Options.v().coffi() ? new CoffiClassProvider() : new AsmClassProvider();
     switch (Options.v().src_prec()) {
     case Options.src_prec_cache:
+	System.out.println("Using the cache with default source provider chain.");
 	classProviders.add(new CacheClassProvider());
 	classProviders.add(classFileClassProvider);
         classProviders.add(new JimpleClassProvider());
         classProviders.add(new JavaClassProvider());
         break;
     case Options.src_prec_only_cache:
+	System.out.println("Using the cache only source provider chain.");
         classProviders.add(new CacheClassProvider());
         break;
       case Options.src_prec_class:
+	  System.out.println("Using the class with default source provider chain.");
         classProviders.add(classFileClassProvider);
         classProviders.add(new JimpleClassProvider());
         classProviders.add(new JavaClassProvider());
         break;
       case Options.src_prec_only_class:
+	   System.out.println("Using the class only source provider chain.");
         classProviders.add(classFileClassProvider);
         break;
       case Options.src_prec_java:
