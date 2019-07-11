@@ -365,13 +365,13 @@ public class ROMClassWrapper implements IBootstrapRunnable{
                 int LVAindex = src.getByte(ptr+1);
 		int increment = src.getByte(ptr+2);
                 mv.visitIincInsn(LVAindex, increment);
-                ptr += 2;
+                ptr += 3;
             }
 	    else if(opcode == BCNames.JBiincw){
 		int LVAindex = src.getShort(ptr+1);
 		int increment =	src.getShort(ptr+3);
 		mv.visitIincInsn(LVAindex, increment);
-		ptr += 5;
+		ptr += 6;
 	    }
 	    else if(opcode == BCNames.JBmultianewarray){
 
@@ -769,10 +769,6 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 		mv.visitTypeInsn(opcode, classname);
                 ptr += 3;
 	    }
-	    else if(opcode == BCNames.JBiinc){
-		mv.visitIincInsn(src.getByte(ptr + 1) & 0xFF, src.getByte(ptr + 2));
-		ptr += 3;
-		}
 	    else{
 		try{
 		    mv.visitInsn(opcode);
@@ -844,8 +840,9 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 		createLabel(opcode, ptr, labels, src, bytecodeSt);
 		ptr += 3;
 	    }
-	    else if(opcode == BCNames.JBgotow){
-		createLabel(opcode, ptr, labels, src, bytecodeSt);
+	    else if((opcode == BCNames.JBgotow) ||
+		    (opcode == BCNames.JBinvokedynamic)){
+	   	createLabel(opcode, ptr, labels, src, bytecodeSt);
 		ptr += 5;
 		}
 	    else if(opcode == 196){
@@ -879,9 +876,8 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 		ptr += 2;
 	    }
 
-	    else if((opcode == BCNames.JBiincw) ||
-		    (opcode == BCNames.JBinvokedynamic)){
-		ptr += 5;
+	    else if(opcode == BCNames.JBiincw){
+		ptr += 6;
 	    }
 	    else if(opcode == BCNames.JBmultianewarray){
 		ptr += 4;
