@@ -998,11 +998,11 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 	    return J9UTF8Helper.stringValue(romStringRef.utf8Data());
 	} else if (shapeDesc == J9CPTYPE_INT) {
 	    J9ROMSingleSlotConstantRefPointer singleSlotConstantRef = J9ROMSingleSlotConstantRefPointer.cast(item);
-	    return singleSlotConstantRef.data().longValue();
+	    return new Integer((int)singleSlotConstantRef.data().longValue());
 	} else if (shapeDesc == J9CPTYPE_FLOAT) {
 	    J9ROMSingleSlotConstantRefPointer singleSlotConstantRef = J9ROMSingleSlotConstantRefPointer.cast(item);
 	    FloatPointer floatPtr = FloatPointer.cast(singleSlotConstantRef.dataEA());
-	    return floatPtr.floatAt(0);
+	    return new Float(floatPtr.floatAt(0));
 	} else if (shapeDesc == J9CPTYPE_LONG) {
 	    String hexValue = "";
 	    if (src.getByteOrder() == ByteOrder.BIG_ENDIAN) {
@@ -1013,7 +1013,7 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 		hexValue += item.slot1().getHexValue().substring(2);
 	    }
 	    long longValue = Long.parseLong(hexValue.substring(2), HEX_RADIX);
-	    return longValue;
+	    return new Long(longValue);
 	} else if (shapeDesc == J9CPTYPE_DOUBLE) {
 	    String hexValue = "";
 	    if (src.getByteOrder() == ByteOrder.BIG_ENDIAN) {
@@ -1025,7 +1025,7 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 	    }
 	    long longValue = Long.parseLong(hexValue.substring(2), HEX_RADIX);
 	    double doubleValue = Double.longBitsToDouble(longValue);
-	    return doubleValue;
+	    return new Double(doubleValue);
 	} else if (shapeDesc == J9CPTYPE_FIELD) {
 	    J9ROMFieldRefPointer romFieldRef = J9ROMFieldRefPointer.cast(item);
 	    J9ROMClassRefPointer classRef = J9ROMClassRefPointer.cast(constantPool.add(romFieldRef.classRefCPIndex()));
