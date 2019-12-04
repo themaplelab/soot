@@ -54,21 +54,17 @@ public class CacheClassProvider implements ClassProvider {
     SharedClassHelperFactory factory = Shared.getSharedClassHelperFactory();
     if (factory != null) {
 	URL[] urls = null;
-	URL url = null;
-	URL testurl = null;
 	URL rturl = null;
-	URL Panathonurl = null;
+	URL testrunnerURL = null;
+	URL testClassUrl = null;
 	SharedClassURLClasspathHelper helper = null;
 	try{
 	    //TODO eventually replace this
 	    //use absolute path to classfile that we are trying to find class of
 	    rturl = new URL("file:///root/openj9-openjdk-jdk8/build/linux-x86_64-normal-server-release/images/j2sdk-image/jre/lib/rt.jar");
-	    Panathonurl = new URL("file:///root/PanathonExampleMaterials/exBin/");
-	    //	    url = new URL("file:///root/soot/tests/");
-	    //hackish
-	    //testurl = new URL("file:///root/soot/cacheTestClassfiles/");
-	    //urls = new URL[]{rturl, url, Panathonurl, testurl};
-	    urls = new URL[]{rturl, Panathonurl}; 
+		testrunnerURL = new URL("file:///root/openj9cryptoReleases/Agent/");
+	    testClassUrl = new URL("file:///root/openj9cryptoReleases/RedefExamples/target/classes/");
+	    urls = new URL[]{rturl, testClassUrl}; 
 	}catch (MalformedURLException e) {
 	    System.out.println("Bad URL provided");
 	    e.printStackTrace();
