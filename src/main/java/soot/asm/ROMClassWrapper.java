@@ -21,8 +21,10 @@
  *******************************************************************************/
 package com.ibm.j9ddr.vm29;
 
-import com.ibm.j9ddr.tools.ddrinteractive.CacheMemorySource;
-import com.ibm.j9ddr.tools.ddrinteractive.CacheMemory;
+import com.ibm.j9ddr.corereaders.memory.BufferedMemorySource;
+import com.ibm.j9ddr.corereaders.memory.BufferedMemory;
+
+import com.ibm.j9ddr.corereaders.memory.MemoryFault;
 
 import com.ibm.j9ddr.CorruptDataException;
 import com.ibm.j9ddr.InvalidDataTypeException;
@@ -139,7 +141,7 @@ public class ROMClassWrapper implements IBootstrapRunnable{
     //classreader specific attributes
     static final boolean FRAMES = true;
 
-    public void run(IVMData vmData, Object[] userData){
+    public void run(IVMData vmData, Object[] userData) {
 	
 	Long addr = new Long((long)userData[0]);
 	this.pointer = J9ROMClassPointer.cast(addr);
@@ -150,7 +152,6 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 	this.cacheMem = (CacheMemorySingleton)userData[2];
 	
 	accept(this.classVisitor);
-
     }
 
     public static ClassVisitor getClassVisitor(){
@@ -158,8 +159,8 @@ public class ROMClassWrapper implements IBootstrapRunnable{
     }
 
     public void accept(final ClassVisitor classVisitor) {
-
-	try{
+		
+	try{		
 	    int version = pointer.majorVersion().intValue();
 	    int classModifiers = pointer.modifiers().intValue();
 	    String classname = J9UTF8Helper.stringValue(pointer.className());
@@ -296,7 +297,7 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 
 	    //field.initialValue is setup like a cp entry, even longValue() +double cast cannot get this as double
 	    //so we manually read it, even though that relies on hard offsets
-	    CacheMemorySource src = this.cacheMem.getMemorySource();
+	    BufferedMemorySource src = this.cacheMem.getMemorySource();
 	    long first = I64Pointer.cast(field.add(1)).at(0).longValue();
 	    long second = I64Pointer.cast(field.add(2)).at(0).longValue();
 	    //This is honestly the opposite of what we expect it to be, completely unsure of why
@@ -336,7 +337,7 @@ public class ROMClassWrapper implements IBootstrapRunnable{
     
     void readMethodBody(long bytecodeSt, long bytecodeEnd, MethodVisitor mv, J9ROMConstantPoolItemPointer constantPool, char returnType) throws CorruptDataException{
 	//drives the visitor to define the body of the method
-	CacheMemorySource src = this.cacheMem.getMemorySource();
+	BufferedMemorySource src = this.cacheMem.getMemorySource();
 	long ptr = bytecodeSt;
 	
 	//for our targets, as we find them
@@ -813,7 +814,7 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 	return opcode;
     }
     //need to find labels before everything else
-    public Label[] findLabels(long bytecodeSt, long bytecodeEnd, long ptr, CacheMemorySource src){
+    public Label[] findLabels(long bytecodeSt, long bytecodeEnd, long ptr, BufferedMemorySource src) throws MemoryFault{
 	Label[] labels = new Label[(int)(bytecodeEnd- bytecodeSt)];
 	  while(ptr < bytecodeEnd){
             int offset = (int)(ptr - bytecodeSt);
@@ -955,7 +956,7 @@ public class ROMClassWrapper implements IBootstrapRunnable{
     }
     
     //populates a label table for us, to use later, that represent targets of jumps
-    public void createLabel(int opcode, long ptr, Label[] labels, CacheMemorySource src, long methodSt){
+    public void createLabel(int opcode, long ptr, Label[] labels, BufferedMemorySource src, long methodSt) throws MemoryFault {
 	int offset;
 	if(opcode == BCNames.JBgotow) {
 	    offset  = src.getInt(ptr + 1);
@@ -986,7 +987,7 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 	int HEX_RADIX = 16;
 	U32Pointer cpShapeDescription = J9ROMClassHelper.cpShapeDescription(pointer);
 	long shapeDesc = ConstantPoolHelpers.J9_CP_TYPE(cpShapeDescription, index);
-	CacheMemorySource src = this.cacheMem.getMemorySource();
+	BufferedMemorySource src = this.cacheMem.getMemorySource();
 	
 	J9ROMConstantPoolItemPointer item = constantPool.add(index);
 

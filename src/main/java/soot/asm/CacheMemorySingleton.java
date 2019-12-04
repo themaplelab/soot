@@ -23,19 +23,25 @@ package soot.asm;
  */
 
 import java.nio.ByteOrder;
+import java.nio.ByteBuffer;
+import java.nio.Buffer;
 
-import com.ibm.j9ddr.tools.ddrinteractive.CacheMemory;
-import com.ibm.j9ddr.tools.ddrinteractive.CacheMemorySource;
+import java.lang.reflect.Field;
+
+import java.lang.NoSuchFieldException;
+
+import com.ibm.j9ddr.corereaders.memory.BufferedMemory;
+import com.ibm.j9ddr.corereaders.memory.BufferedMemorySource;
 
 public class CacheMemorySingleton{
 
     //this singleton can only have one memory source ever added to it
     private static CacheMemorySingleton cacheMemorySingleton;
-    private CacheMemory memory;
-    private CacheMemorySource memorySource;
+    private BufferedMemory memory;
+    private BufferedMemorySource memorySource;
     
     private CacheMemorySingleton(){
-	memory = new CacheMemory(ByteOrder.nativeOrder());                                                                   
+	memory = new BufferedMemory(ByteOrder.nativeOrder());                                                                   
     }
 
     public static CacheMemorySingleton getInstance(){
@@ -45,19 +51,48 @@ public class CacheMemorySingleton{
         return cacheMemorySingleton; 
     } 
 
-    public CacheMemory getMemory(){
-	return memory;
+    public BufferedMemory getMemory(){
+		return memory;
     }
 
-    public CacheMemorySource getMemorySource(){
-	return memorySource;
+    public BufferedMemorySource getMemorySource(){
+		return memorySource;
     }
     
     public void addMemorySource(long addr, int size){
-	if (cacheMemorySingleton != null && memorySource == null) {
-	    memorySource = new CacheMemorySource(addr, size);
-	    memory.addMemorySource(memorySource);
-	}
+		if (cacheMemorySingleton != null && memorySource == null) {
+			ByteBuffer bb = makeCacheBuffer(addr, size);
+			memorySource = new BufferedMemorySource(addr, bb);
+			memory.addMemorySource(memorySource);
+		}
     }
-    
+
+	static final Field address;
+    static final Field capacity;
+
+	static {
+		//first set the buffer to be configurable
+		try {
+            address = Buffer.class.getDeclaredField("address");
+            address.setAccessible(true);
+            capacity = Buffer.class.getDeclaredField("capacity");
+            capacity.setAccessible(true);
+        } catch (NoSuchFieldException e) {
+            throw new AssertionError(e);
+		}
+	}
+	
+	private ByteBuffer makeCacheBuffer(long addr, int size){
+		//then set it up
+		try {
+			ByteBuffer bb = ByteBuffer.allocateDirect(0).order(ByteOrder.nativeOrder());
+			address.setLong(bb, addr);
+			capacity.setInt(bb, size);
+			bb.clear();
+			return bb;
+		} catch (IllegalAccessException e) {
+            throw new AssertionError(e);
+        }
+	}
+
 }
