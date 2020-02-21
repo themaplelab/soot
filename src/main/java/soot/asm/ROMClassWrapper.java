@@ -80,6 +80,9 @@ import java.nio.ByteOrder;
 import soot.asm.SootClassBuilder;
 import soot.asm.CacheMemorySingleton;
 
+//for debugging only, not actual dep. TODO rm later
+import com.ibm.j9ddr.vm29.tools.ddrinteractive.commands.J9BCUtil;
+
 /*                                                                                                                          
  * This implementation strongly relies upon the visitor invoke pattern defined in ASM Classreader:                                                             
  * https://gitlab.ow2.org/asm/asm/blob/ASM_5_2/src/org/objectweb/asm/ClassReader.java                                       
@@ -240,6 +243,17 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 	String name = J9UTF8Helper.stringValue(nameAndSignature.name());
 	String signature= J9UTF8Helper.stringValue(nameAndSignature.signature());
 
+	//TODO rm, for debugging only
+	/*
+	if(name.contains("copyOf")){
+		System.out.println("---------------------------------");
+		System.out.println("DUMPING copyof");
+		long dumpFlags = (this.cacheMem.getMemorySource().getByteOrder() == ByteOrder.BIG_ENDIAN) ? 1 : 0;
+		J9BCUtil.j9bcutil_dumpRomMethod(System.out, romMethod, pointer, dumpFlags, J9BCUtil.BCUtil_DumpAnnotations);
+		System.out.println("---------------------------------");
+	}
+	*/
+	
 	int maxStack = romMethod.maxStack().intValue();
 	int maxLocals = romMethod.tempCount().intValue() + romMethod.argCount().intValue();
 	int argCount = romMethod.argCount().intValue();
@@ -250,10 +264,7 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 	long bytecodeEnd = J9ROMMethodHelper.bytecodeEnd(romMethod).longValue();
 	//TODO find a better way, there has got to be some api for this...
 	char returnType = signature.charAt(signature.lastIndexOf(")") + 1);
-	if(returnType == '['){
-	    returnType = signature.charAt(signature.lastIndexOf(")") + 2);
-	}
-
+	
 	String[] exceptions = getExceptions(romMethod);
 	//visitMethod(int access, String name, String desc, String signature, String[] exceptions)              
 	MethodVisitor mv = classVisitor.visitMethod(methodModifiers, name, signature, signature, exceptions);
@@ -769,8 +780,15 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 		String classname = J9UTF8Helper.stringValue(J9ROMStringRefPointer.cast(info).utf8Data());
 		mv.visitTypeInsn(opcode, classname);
                 ptr += 3;
-	    }
-	    else{
+	    } else if(opcode == BCNames.JBsyncReturn0){
+			mv.visitInsn(Opcodes.RETURN);
+			ptr += 1;
+		} else if((opcode == BCNames.JBsyncReturn1) ||
+				  (opcode == BCNames.JBsyncReturn2)){
+			opcode = getReturnType(returnType);
+			mv.visitInsn(opcode);
+			ptr += 1;
+		}else{
 		try{
 		    mv.visitInsn(opcode);
 		}
@@ -805,8 +823,9 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 	    opcode = 175; //dreturn
 	    break;
 	case 'L':
+	case '[':
 	    opcode = 176; //areturn                                                                                      
-            break;
+		break;
 	default:
 	    break; // void
 	}
