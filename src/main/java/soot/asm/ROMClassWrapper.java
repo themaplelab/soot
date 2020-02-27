@@ -189,8 +189,8 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 	    int methodCount = pointer.romMethodCount().intValue();
 	    J9ROMMethodPointer romMethod = pointer.romMethods();
 	    for(int i = 0; i < methodCount; i++){
-		readMethod(romMethod, constantPool);
-		romMethod = ROMHelp.nextROMMethod(romMethod);
+			readMethod(romMethod, constantPool);
+			romMethod = ROMHelp.nextROMMethod(romMethod);
 	    }
 	    
 	}catch(Exception e){
@@ -860,8 +860,7 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 		createLabel(opcode, ptr, labels, src, bytecodeSt);
 		ptr += 3;
 	    }
-	    else if((opcode == BCNames.JBgotow) ||
-		    (opcode == BCNames.JBinvokedynamic)){
+	    else if(opcode == BCNames.JBgotow){
 	   	createLabel(opcode, ptr, labels, src, bytecodeSt);
 		ptr += 5;
 		}
@@ -935,9 +934,12 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 		    (opcode == BCNames.JBinvokevirtual) ||
                     (opcode == BCNames.JBinvokespecial) ||
                     (opcode == BCNames.JBinvokestatic) ||
-		    (opcode == BCNames.JBinvokeinterface)){
+				(opcode == BCNames.JBinvokeinterface)){
 		ptr += 3;
-	    }
+	    } else if(opcode == BCNames.JBinvokedynamic){
+			ptr+=5;
+		}
+		
 	    else if(opcode == BCNames.JBtableswitch)
 		{
 		    ptr = ptr + 4 - (offset & 3);
@@ -990,7 +992,7 @@ public class ROMClassWrapper implements IBootstrapRunnable{
     }
 
     public void addLabel(Label[] labels, int labelIndex){
-	if(labels[labelIndex] == null){
+		if(labels[labelIndex] == null){
             labels[labelIndex] = new Label();
         }
 	
