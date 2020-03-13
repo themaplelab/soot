@@ -118,6 +118,10 @@ public class ROMClassWrapper implements IBootstrapRunnable{
     private int J9CPTYPE_METHOD_TYPE  = 13;
     private int J9CPTYPE_METHODHANDLE  = 14;
 
+	//https://github.com/eclipse/openj9/blob/master/runtime/oti/cfr.h
+	//CFR_ACC_PUBLIC |  CFR_ACC_PRIVATE | CFR_ACC_PROTECTED | CFR_ACC_STATIC | CFR_ACC_FINAL | CFR_ACC_SYNCHRONIZED | CFR_ACC_BRIDGE | CFR_ACC_VARARGS | CFR_ACC_NATIVE | CFR_ACC_STRICT | CFR_ACC_ABSTRACT | CFR_ACC_SYNTHETIC)
+	private int METHOD_ACCESS_MASK = 0x00000001 | 0x00000002 | 0x00000004 | 0x00000008 | 0x00000010 | 0x00000020 | 0x00000040 | 0x00000080 | 0x00000100 | 0x00000800 | 0x00000400 | 0x00001000;
+	
     //J9FieldFlagConstant 0x400000
     //J9FieldTypeDouble 0x180000
     //J9FieldTypeLong 0x380000
@@ -267,7 +271,7 @@ public class ROMClassWrapper implements IBootstrapRunnable{
 	
 	String[] exceptions = getExceptions(romMethod);
 	//visitMethod(int access, String name, String desc, String signature, String[] exceptions)              
-	MethodVisitor mv = classVisitor.visitMethod(methodModifiers, name, signature, signature, exceptions);
+	MethodVisitor mv = classVisitor.visitMethod(methodModifiers&METHOD_ACCESS_MASK, name, signature, signature, exceptions);
 	readMethodBody(bytecodeSt, bytecodeEnd, mv, constantPool, returnType);
 	//for now
         mv.visitMaxs(maxStack, maxLocals);
