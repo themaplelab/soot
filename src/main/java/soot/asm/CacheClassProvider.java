@@ -1,10 +1,11 @@
 package soot.asm;
- 
+
+
 /*-
  * #%L
  * Soot - a J*va Optimization Framework
  * %%
- * Copyright (C) 2019 Kristen Newbury
+ * Copyright (C) 1997 - 2014 Raja Vallee-Rai and others 
  * %%
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as
@@ -35,6 +36,8 @@ import java.net.URLClassLoader;
 import java.net.URL;
 import java.net.MalformedURLException;
 
+import java.io.File;
+
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
@@ -44,7 +47,19 @@ import java.nio.ByteOrder;
  * @author Kristen Newbury
  */
 public class CacheClassProvider implements ClassProvider {
-    
+
+	private static URL testClassUrl ;
+	
+	public static void setTestClassUrl(String url){
+		try{
+			testClassUrl = new URL("file://"+url);
+			System.out.println("CacheClassProvider: setting testClassUrl: "+ url);
+		}catch (MalformedURLException e) {
+			System.out.println("Bad URL provided, not using url: "+ url);
+			e.printStackTrace();
+		}
+	}
+	
   public ClassSource find(String cls) {
 
     byte[] romCookie = null;
@@ -53,39 +68,48 @@ public class CacheClassProvider implements ClassProvider {
     
     SharedClassHelperFactory factory = Shared.getSharedClassHelperFactory();
     if (factory != null) {
-	URL[] urls = null;
+	URL[] urlsForRuntime = null;
+	URL[] urlsForApp = null;
+	URL[] urlsForJCE = null;
+	URL jceurl = null;
 	URL rturl = null;
-	URL testrunnerURL = null;
-	URL testClassUrl = null;
-	SharedClassURLClasspathHelper helper = null;
+	SharedClassURLClasspathHelper helperForAppClasses = null;
+	SharedClassURLClasspathHelper helperForRuntimeClasses = null;
+	SharedClassURLClasspathHelper helperForJCE = null;
 	try{
-	    //TODO eventually replace this
-	    //use absolute path to classfile that we are trying to find class of
-	    rturl = new URL("file:///root/openj9-openjdk-jdk8/build/linux-x86_64-normal-server-release/images/j2sdk-image/jre/lib/rt.jar");
-		testrunnerURL = new URL("file:///root/openj9cryptoReleases/Agent/");
-	    testClassUrl = new URL("file:///root/openj9cryptoReleases/RedefExamples/target/classes/");
-	    urls = new URL[]{rturl, testClassUrl}; 
+		rturl = new URL("file://" + System.getProperty("java.home") + File.separator + "lib" + File.separator + "rt.jar");
+		jceurl = new URL("file://" + System.getProperty("java.home") + File.separator + "lib" + File.separator + "jce.jar");
+	    urlsForRuntime = new URL[]{rturl}; 
+		urlsForApp = new URL[]{testClassUrl};
+		urlsForJCE = new URL[]{jceurl};  
 	}catch (MalformedURLException e) {
 	    System.out.println("Bad URL provided");
 	    e.printStackTrace();
 	}
-	URLClassLoader loader = new URLClassLoader(urls);
-
+	//System.out.println("CacheClassProvider: using this list of urls: "+ java.util.Arrays.toString(urlsForApp));
+	URLClassLoader loaderForRuntime = new URLClassLoader(urlsForRuntime);
+	URLClassLoader loaderForApp = new URLClassLoader(urlsForApp);
+	URLClassLoader loaderForJCE = new URLClassLoader(urlsForJCE);
+	
 	//get helper to find classes in cache
 	try{
-	    helper = factory.getURLClasspathHelper(loader, urls);
+		helperForRuntimeClasses = factory.getURLClasspathHelper(loaderForRuntime, urlsForRuntime); 
+	    helperForAppClasses = factory.getURLClasspathHelper(loaderForApp, urlsForApp);
+		helperForJCE = factory.getURLClasspathHelper(loaderForJCE, urlsForJCE);
 	}catch (HelperAlreadyDefinedException e) {
 	    System.out.println("Helper already defined?"+e.getMessage());
 	    e.printStackTrace();
 	}
 	
 	//not sure if this is needed, think probably not?
-	helper.confirmAllEntries();
+	helperForAppClasses.confirmAllEntries();
+	helperForRuntimeClasses.confirmAllEntries();
+	helperForJCE.confirmAllEntries();
 	
 	try {
 	    //for now this part happens every time
 	    //maybe consider avoiding that later 
-	    byte[] cacheInfo = helper.findSharedCache();
+	    byte[] cacheInfo = helperForAppClasses.findSharedCache();
 	    if (cacheInfo != null){
 		wrapper = ByteBuffer.wrap(cacheInfo);
 		//jni filled byte array
@@ -100,9 +124,19 @@ public class CacheClassProvider implements ClassProvider {
 	}
 
 	//is this actually the format of what needs to be provided here? should it be just classname or full url to classfile?
-	romCookie = helper.findSharedClass(cls, null);
+	romCookie = helperForAppClasses.findSharedClass(cls, null);
 	if (romCookie == null) {
-	    System.out.println("Cannot find class in cache: "+ cls);
+		romCookie = helperForRuntimeClasses.findSharedClass(cls, null);
+		if(romCookie == null){
+			romCookie = helperForJCE.findSharedClass(cls, null);
+			if(romCookie == null){
+				System.out.println("Cannot find class in cache: "+ cls);
+			}else{
+				System.out.println("Located the class in the cache: "+ cls);
+			}
+		}else{
+        System.out.println("Located the class in the cache: "+ cls);
+    }
 	}else{
 	    System.out.println("Located the class in the cache: "+ cls);
 	}
