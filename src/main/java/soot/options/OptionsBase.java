@@ -114,12 +114,12 @@ abstract class OptionsBase {
   public LinkedList<String> classes() {
     return classes;
   }
-    //required to pass only one class from any application invoking Soot via Scene
-    public void setArgClass(String classname){
-	classes.add(classname);
-	System.out.println("The classes in optionBase are: "+ classes.toString());
-    }
 
+	public void addArgClass(String classname){
+		classes.add(classname);
+		System.out.println("The classes in optionBase are: "+ classes.toString());
+	}
+	
   public boolean setPhaseOption(String phase, String option) {
     return PhaseOptions.v().processPhaseOptions(phase, option);
   }
