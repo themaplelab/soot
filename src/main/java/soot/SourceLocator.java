@@ -30,6 +30,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -41,12 +42,14 @@ import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
+import org.jf.dexlib2.iface.DexFile;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import soot.JavaClassProvider.JarException;
 import soot.asm.AsmClassProvider;
 import soot.asm.CacheClassProvider;
+import soot.asm.AsmJava9ClassProvider;
 import soot.dexpler.DexFileProvider;
 import soot.options.Options;
 
@@ -59,6 +62,7 @@ public class SourceLocator {
   protected List<ClassProvider> classProviders;
   protected List<String> classPath;
   private List<String> sourcePath;
+  private boolean java9Mode = false;
 
   private LoadingCache<String, ClassSourceType> pathToSourceType
       = CacheBuilder.newBuilder().initialCapacity(60).maximumSize(500).softValues()
@@ -124,6 +128,9 @@ public class SourceLocator {
   }
 
   public static SourceLocator v() {
+    if (ModuleUtil.module_mode()) {
+      return G.v().soot_ModulePathSourceLocator();
+    }
     return G.v().soot_SourceLocator();
   }
 
@@ -153,6 +160,10 @@ public class SourceLocator {
     for (String originalDir : classPath.split(regex)) {
       try {
         String canonicalDir = new File(originalDir).getCanonicalPath();
+        if (originalDir.equals(ModulePathSourceLocator.DUMMY_CLASSPATH_JDK9_FS)) {
+          SourceLocator.v().java9Mode = true;
+          continue;
+        }
         ret.add(canonicalDir);
       } catch (IOException e) {
         throw new CompilationDeathException("Couldn't resolve classpath entry " + originalDir + ": " + e);
@@ -231,6 +242,9 @@ public class SourceLocator {
   protected void setupClassProviders() {
     classProviders = new LinkedList<ClassProvider>();
     ClassProvider classFileClassProvider = Options.v().coffi() ? new CoffiClassProvider() : new AsmClassProvider();
+    if (this.java9Mode) {
+      classProviders.add(new AsmJava9ClassProvider());
+    }
     switch (Options.v().src_prec()) {
     case Options.src_prec_cache:
 	System.out.println("Using the cache with default source provider chain.");
@@ -305,7 +319,7 @@ public class SourceLocator {
     return sourcePath;
   }
 
-  private ClassSourceType getClassSourceType(String path) {
+  protected ClassSourceType getClassSourceType(String path) {
     try {
       return pathToSourceType.get(path);
     } catch (Exception e) {
@@ -317,15 +331,26 @@ public class SourceLocator {
     return getClassesUnder(aPath, "");
   }
 
-  private List<String> getClassesUnder(String aPath, String prefix) {
+  public List<String> getClassesUnder(String aPath, String prefix) {
     List<String> classes = new ArrayList<String>();
+
+    // FIXME: AD the dummy_classpath_variable should be replaced with a more stable concept
+    if (aPath.equals(ModulePathSourceLocator.DUMMY_CLASSPATH_JDK9_FS)) {
+      Collection<List<String>> values = ModulePathSourceLocator.v().getClassUnderModulePath("jrt:/").values();
+      ArrayList<String> foundClasses = new ArrayList<>();
+      for (List<String> classesInModule : values) {
+        foundClasses.addAll(classesInModule);
+      }
+      return foundClasses;
+    }
+
     ClassSourceType cst = getClassSourceType(aPath);
 
     // Get the dex file from an apk
     if (cst == ClassSourceType.apk || cst == ClassSourceType.dex) {
       try {
-        for (DexFileProvider.DexContainer dex : DexFileProvider.v().getDexFromSource(new File(aPath))) {
-          classes.addAll(DexClassProvider.classesOfDex(dex.getBase()));
+        for (DexFileProvider.DexContainer<? extends DexFile> dex : DexFileProvider.v().getDexFromSource(new File(aPath))) {
+          classes.addAll(DexClassProvider.classesOfDex(dex.getBase().getDexFile()));
         }
       } catch (IOException e) {
         throw new CompilationDeathException("Error reading dex source", e);
@@ -360,8 +385,9 @@ public class SourceLocator {
 
       // we might have dex files inside the archive
       try {
-        for (DexFileProvider.DexContainer container : DexFileProvider.v().getDexFromSource(new File(aPath))) {
-          classes.addAll(DexClassProvider.classesOfDex(container.getBase()));
+        for (DexFileProvider.DexContainer<? extends DexFile> container : DexFileProvider.v()
+            .getDexFromSource(new File(aPath))) {
+          classes.addAll(DexClassProvider.classesOfDex(container.getBase().getDexFile()));
         }
       } catch (CompilationDeathException e) { // There might be cases where there is no dex file within a JAR or ZIP file...
       } catch (IOException e) {
@@ -394,8 +420,9 @@ public class SourceLocator {
             classes.add(prefix + fileName.substring(0, index));
           } else if (fileName.endsWith(".dex")) {
             try {
-              for (DexFileProvider.DexContainer container : DexFileProvider.v().getDexFromSource(element)) {
-                classes.addAll(DexClassProvider.classesOfDex(container.getBase()));
+              for (DexFileProvider.DexContainer<? extends DexFile> container : DexFileProvider.v()
+                  .getDexFromSource(element)) {
+                classes.addAll(DexClassProvider.classesOfDex(container.getBase().getDexFile()));
               }
             } catch (IOException e) {
               /* Ignore unreadable files */
@@ -694,7 +721,7 @@ public class SourceLocator {
     this.dexClassPathExtensions = null;
   }
 
-  private enum ClassSourceType {
-    jar, zip, apk, dex, directory, unknown
+  protected enum ClassSourceType {
+    jar, zip, apk, dex, directory, jrt, unknown
   }
 }

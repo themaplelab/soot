@@ -73,7 +73,7 @@ public class ClassConstant extends Constant {
       } else if (tp instanceof FloatType) {
         return "F";
       } else if (tp instanceof LongType) {
-        return "L";
+        return "J";
       } else if (tp instanceof ShortType) {
         return "S";
       } else if (tp instanceof BooleanType) {
@@ -121,7 +121,7 @@ public class ClassConstant extends Constant {
       baseType = DoubleType.v();
     } else if (tmp.equals("F")) {
       baseType = FloatType.v();
-    } else if (tmp.equals("L")) {
+    } else if (tmp.equals("J")) {
       baseType = LongType.v();
     } else if (tmp.equals("S")) {
       baseType = ShortType.v();
@@ -132,6 +132,27 @@ public class ClassConstant extends Constant {
     }
 
     return numDimensions > 0 ? ArrayType.v(baseType, numDimensions) : baseType;
+  }
+
+  /**
+   * Gets an internal representation of the class used in Java bytecode.
+   * The returned string is similar to the fully qualified name but with '/' instead of '.'.
+   * Example: "java/lang/Object".
+   * See https://docs.oracle.com/javase/specs/jvms/se8/html/jvms-4.html#jvms-4.2.1
+   */
+  public String toInternalString() {
+    String internal = value;
+    while (internal.startsWith("[")) {
+      internal = internal.substring(1);
+    }
+    if (internal.endsWith(";")) {
+      internal = internal.substring(0, internal.length() - 1);
+      if (internal.startsWith("L")) {
+        internal = internal.substring(1);
+      }
+    }
+
+    return internal;
   }
 
   // In this case, equals should be structural equality.
