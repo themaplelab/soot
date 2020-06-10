@@ -185,6 +185,7 @@ public class SourceLocator {
     JarException ex = null;
     for (ClassProvider cp : classProviders) {
       try {
+		  System.out.println("Trying to find source: "+ className);
         ClassSource ret = cp.find(className);
         if (ret != null) {
           return ret;

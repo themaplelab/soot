@@ -995,6 +995,7 @@ public class Scene // extends AbstractHost
     if (!ret.isPhantom()) {
       ret = loadClass(className, SootClass.BODIES);
     }
+	System.out.println("loaded this class: "+ ret.getName() + " which is app class? "+ret.isApplicationClass() + " and is phantom? "+ ret.isPhantom());
     return ret;
   }
 
@@ -1796,6 +1797,7 @@ public class Scene // extends AbstractHost
   private void loadNecessaryClass(String name) {
     SootClass c;
     c = loadClassAndSupport(name);
+	System.out.println("Setting this as app class loc1799"+ name);
     c.setApplicationClass();
   }
 
@@ -1818,11 +1820,16 @@ public class Scene // extends AbstractHost
       }
     } else {
       for (final String path : Options.v().process_dir()) {
-        for (String cl : SourceLocator.v().getClassesUnder(path)) {
+		  System.out.println("Setting this as app class loc1825 UNDER THIS PATH: " + path);
+		  for (String cl : SourceLocator.v().getClassesUnder(path)) {
+			  System.out.println("this is the class at 1825: "+ cl);
           SootClass theClass = loadClassAndSupport(cl);
           if (!theClass.isPhantom) {
+			  System.out.println("Setting this as app class loc1825"+ cl);
             theClass.setApplicationClass();
-          }
+          }else{
+			  System.out.println("not setting this class as app class, it is PHANTOM: "+ cl);
+		  }
         }
       }
     }
@@ -1849,8 +1856,8 @@ public class Scene // extends AbstractHost
     }
 
     for (String className : dynClasses) {
-
-      dynamicClasses.add(loadClassAndSupport(className));
+		System.out.println("this is the class at 1859 DYNAM: "+ className);
+		dynamicClasses.add(loadClassAndSupport(className));
     }
 
     // remove non-concrete classes that may accidentally have been loaded
@@ -1883,16 +1890,20 @@ public class Scene // extends AbstractHost
           continue;
         }
         if (Options.v().app()) {
+			System.out.println("Setting this as app class loc1888"+ s.getName());
           s.setApplicationClass();
         }
         if (Options.v().classes().contains(s.getName())) {
+			System.out.println("Setting this as app class loc1892"+ s.getName());
           s.setApplicationClass();
           continue;
         }
         if (s.isApplicationClass() && isExcluded(s)) {
+			System.out.println("Setting this as lib class loc1897"+ s.getName());
           s.setLibraryClass();
         }
         if (isIncluded(s)) {
+			System.out.println("Setting this as app class loc1901"+ s.getName());
           s.setApplicationClass();
         }
         if (s.isApplicationClass()) {

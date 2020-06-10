@@ -44,6 +44,8 @@ import soot.options.Options;
 import soot.util.ConcurrentHashMultiMap;
 import soot.util.MultiMap;
 
+import java.lang.Thread;
+
 /** Loads symbols for SootClasses from either class files or jimple files. */
 public class SootResolver {
   private static final Logger logger = LoggerFactory.getLogger(SootResolver.class);
@@ -125,7 +127,11 @@ public class SootResolver {
     }
     newClass.setResolvingLevel(SootClass.DANGLING);
     Scene.v().addClass(newClass);
-
+	System.out.println("Making a class ref in sootresolver: "+ className);
+	if(className.equals("differ.SemanticDiffer")){
+		System.out.println("SEMANTICDIFFER is app class: "+ newClass.isApplicationClass());
+		//Thread.dumpStack();
+	}
     return newClass;
   }
 
@@ -137,6 +143,7 @@ public class SootResolver {
     SootClass resolvedClass = null;
     try {
       resolvedClass = makeClassRef(className);
+	  System.out.println("adding to worklist from loc 140: "+ className);
       addToResolveWorklist(resolvedClass, desiredLevel);
       processResolveWorklist();
       return resolvedClass;
@@ -158,6 +165,7 @@ public class SootResolver {
         if (resolveEverything()) { // Whole program mode
           boolean onlySignatures = sc.isPhantom() || (Options.v().no_bodies_for_excluded() && Scene.v().isExcluded(sc)
               && !Scene.v().getBasicClasses().contains(sc.getName()));
+		  System.out.println("Resolving from worklist: "+ sc.getName() + " at only sigs?: "+ onlySignatures);
           if (onlySignatures) {
             bringToSignatures(sc);
             sc.setPhantomClass();
@@ -190,10 +198,13 @@ public class SootResolver {
   protected void addToResolveWorklist(Type type, int level) {
     // We go from Type -> SootClass directly, since RefType.getSootClass
     // calls makeClassRef anyway
+	  System.out.println("these are the levels: HIERARCHY"+ SootClass.HIERARCHY + " SIGNATURES" + SootClass.SIGNATURES + " BODIES "+ SootClass.BODIES);
     if (type instanceof RefType) {
-      addToResolveWorklist(((RefType) type).getSootClass(), level);
+		System.out.println("adding to worklist from loc 196: "+ type + "at level: "+ level);
+		addToResolveWorklist(((RefType) type).getSootClass(), level);
     } else if (type instanceof ArrayType) {
-      addToResolveWorklist(((ArrayType) type).baseType, level);
+		System.out.println("adding to worklist from loc 199: "+ type);
+		addToResolveWorklist(((ArrayType) type).baseType, level);
     }
     // Other types ignored
   }
@@ -252,6 +263,7 @@ public class SootResolver {
       } else {
         Dependencies dependencies = is.resolve(sc);
         if (!dependencies.typesToSignature.isEmpty()) {
+			System.out.println("putting all types from this class : "+ sc.getName() + " types are: " + dependencies.typesToSignature);
           classToTypesSignature.putAll(sc, dependencies.typesToSignature);
         }
         if (!dependencies.typesToHierarchy.isEmpty()) {
@@ -270,13 +282,16 @@ public class SootResolver {
     // Bring superclasses to hierarchy
     SootClass superClass = sc.getSuperclassUnsafe();
     if (superClass != null) {
-      addToResolveWorklist(superClass, level);
+		System.out.println("adding to worklist from loc 277: "+ superClass.getName());
+		addToResolveWorklist(superClass, level);
     }
     SootClass outerClass = sc.getOuterClassUnsafe();
     if (outerClass != null) {
+		System.out.println("adding to worklist from loc 282: "+ outerClass.getName());
       addToResolveWorklist(outerClass, level);
     }
     for (SootClass iface : sc.getInterfaces()) {
+		System.out.println("adding to worklist from loc 286: "+ iface.getName());
       addToResolveWorklist(iface, level);
     }
   }
@@ -300,16 +315,20 @@ public class SootResolver {
 
   protected void bringToSignaturesUnchecked(SootClass sc) {
     for (SootField f : sc.getFields()) {
-      addToResolveWorklist(f.getType(), SootClass.HIERARCHY);
+		System.out.println("adding to worklist from loc 310: "+ f.getType());
+		addToResolveWorklist(f.getType(), SootClass.HIERARCHY);
     }
     for (SootMethod m : sc.getMethods()) {
+		System.out.println("adding to worklist from loc 314: "+ m.getReturnType());
       addToResolveWorklist(m.getReturnType(), SootClass.HIERARCHY);
       for (Type ptype : m.getParameterTypes()) {
+		  System.out.println("adding to worklist from loc 317: "+ ptype);
         addToResolveWorklist(ptype, SootClass.HIERARCHY);
       }
       List<SootClass> exceptions = m.getExceptionsUnsafe();
       if (exceptions != null) {
         for (SootClass exception : exceptions) {
+			System.out.println("adding to worklist from loc 323: "+ exception.getName());
           addToResolveWorklist(exception, SootClass.HIERARCHY);
         }
       }
@@ -347,7 +366,8 @@ public class SootResolver {
         Iterator<Type> it = references.iterator();
         while (it.hasNext()) {
           final Type t = it.next();
-          addToResolveWorklist(t, SootClass.HIERARCHY);
+		  System.out.println("adding to worklist from loc 351: "+ t);
+		  addToResolveWorklist(t, SootClass.HIERARCHY);
         }
       }
     }
@@ -360,6 +380,8 @@ public class SootResolver {
         Iterator<Type> it = references.iterator();
         while (it.hasNext()) {
           final Type t = it.next();
+		  System.out.println("adding to worklist from loc 365: "+ t + " in class " + sc.getName());
+		  
           addToResolveWorklist(t, SootClass.SIGNATURES);
         }
       }
@@ -373,7 +395,8 @@ public class SootResolver {
     }
     reResolveHierarchy(cl, SootClass.HIERARCHY);
     cl.setResolvingLevel(newResolvingLevel);
-    addToResolveWorklist(cl, resolvingLevel);
+	System.out.println("adding to worklist from loc 379: "+ cl.getName());
+	addToResolveWorklist(cl, resolvingLevel);
     processResolveWorklist();
   }
 

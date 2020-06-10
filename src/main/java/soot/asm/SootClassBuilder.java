@@ -98,6 +98,7 @@ public class SootClassBuilder extends ClassVisitor {
   }
 
   void addDep(String s) {
+	  System.out.println("Adding a dep type  anywhere: "+ s );
     String className = AsmUtil.baseTypeName(s);
     RefType refType = makeRefType(className);
     addDep(refType);
@@ -138,12 +139,14 @@ public class SootClassBuilder extends ClassVisitor {
     klass.setModifiers(access & ~Opcodes.ACC_SUPER);
     if (superName != null) {
       superName = AsmUtil.toQualifiedName(superName);
-      addDep(makeRefType(superName));
+	  System.out.println("Adding a dep super loc 142: "+ superName + " is parent of "+ name);
+	  addDep(makeRefType(superName));
       SootClass superClass = makeClassRef(superName);
       klass.setSuperclass(superClass);
     }
     for (String intrf : interfaces) {
       intrf = AsmUtil.toQualifiedName(intrf);
+	  System.out.println("Adding a dep interface loc 149: " +intrf + " is interface of "+ name);
       addDep(makeRefType(intrf));
       SootClass interfaceClass = makeClassRef(intrf);
       interfaceClass.setModifiers(interfaceClass.getModifiers() | Modifier.INTERFACE);
@@ -157,7 +160,8 @@ public class SootClassBuilder extends ClassVisitor {
   @Override
   public FieldVisitor visitField(int access, String name, String desc, String signature, Object value) {
     soot.Type type = AsmUtil.toJimpleType(desc, Optional.fromNullable(this.klass.moduleName));
-    addDep(type);
+	System.out.println("Adding a dep field loc 163: " +type + " is field belonging to: "+ name );
+	addDep(type);
     SootField field = Scene.v().makeSootField(name, type, access);
     Tag tag;
     if (value instanceof Integer) {
@@ -193,14 +197,16 @@ public class SootClassBuilder extends ClassVisitor {
       thrownExceptions = new ArrayList<SootClass>(len);
       for (int i = 0; i != len; i++) {
         String ex = AsmUtil.toQualifiedName(exceptions[i]);
-        addDep(makeRefType(ex));
+		System.out.println("Adding a dep exception loc 200: "+ ex + " is ex of "+ name);
+		addDep(makeRefType(ex));
         SootClass thrownException = makeClassRef(ex);
         thrownExceptions.add(thrownException);
       }
     }
     List<soot.Type> sigTypes = AsmUtil.toJimpleDesc(desc, Optional.fromNullable(this.klass.moduleName));
     for (soot.Type type : sigTypes) {
-      addDep(type);
+		System.out.println("Adding a dep from sigtypes loc 209: "+ type + " is in method "+ name + " " + desc + " " + signature );
+		addDep(type);
     }
     SootMethod method
         = Scene.v().makeSootMethod(name, sigTypes, sigTypes.remove(sigTypes.size() - 1), access, thrownExceptions);
