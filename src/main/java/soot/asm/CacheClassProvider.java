@@ -79,8 +79,14 @@ public class CacheClassProvider implements ClassProvider {
 	try{
 		rturl = new URL("file://" + System.getProperty("java.home") + File.separator + "lib" + File.separator + "rt.jar");
 		jceurl = new URL("file://" + System.getProperty("java.home") + File.separator + "lib" + File.separator + "jce.jar");
-	    urlsForRuntime = new URL[]{rturl}; 
-		urlsForApp = new URL[]{testClassUrl};
+	    urlsForRuntime = new URL[]{rturl};
+		if(testClassUrl != null){
+			urlsForApp = new URL[]{testClassUrl};
+		}else{
+			System.out.println("No test class url set");
+			return null;
+		}
+		
 		urlsForJCE = new URL[]{jceurl};  
 	}catch (MalformedURLException e) {
 	    System.out.println("Bad URL provided");
